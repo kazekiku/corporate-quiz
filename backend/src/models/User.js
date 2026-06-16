@@ -2,25 +2,20 @@
 const { query } = require('../config/database');
 
 class User {
-    static async create(userData) {
-        const { fullName, email, code } = userData;
-        
-        // Определяем роль по коду: L - капитан, остальные - сотрудник
-        const userRole = code.slice(-1) === 'L' ? 'L' : 'E';
-        
+    static async createSimple(fullName, email) {
         const sql = `
             INSERT INTO users (full_name, email, role)
-            VALUES (?, ?, ?)
+            VALUES (?, ?, 'L')
         `;
-        const result = await query(sql, [fullName, email, userRole]);
+        const result = await query(sql, [fullName, email]);
         
-        console.log('📝 User created:', { id: result.insertId, fullName, role: userRole });
+        console.log('📝 Пользователь создан:', { id: result.insertId, fullName, role: 'L' });
         
         return {
             id: result.insertId,
             full_name: fullName,
             email: email,
-            role: userRole
+            role: 'L'
         };
     }
     

@@ -1,37 +1,38 @@
-// backend/src/routes/authRoutes.js
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Team = require('../models/Team');
 const { generateToken, verifyToken } = require('../middleware/auth');
-const { query } = require('../config/database'); // Добавьте этот импорт
+const { query } = require('../config/database');
 
-// Регистрация
+// Регистрация - сразу создаём отдел
 router.post('/register', async (req, res) => {
     try {
-        const { fullName, email, code } = req.body;
+        const { teamName } = req.body;
         
-        console.log('📝 Регистрация:', { fullName, email, code });
+        console.log('🏢 Создание отдела:', teamName);
         
-        const codeRegex = /^[1-9]-[0-9]{2}[APDL]$/;
-        if (!codeRegex.test(code)) {
+        if (!teamName || !teamName.trim()) {
             return res.status(400).json({
                 success: false,
-                message: 'Неверный формат кода. Пример: 1-07A'
+                message: 'Введите название отдела'
             });
         }
         
-        const existingUser = await User.findByEmail(email);
-        if (existingUser) {
-            return res.status(400).json({
-                success: false,
-                message: 'Пользователь с таким email уже существует'
-            });
-        }
+        // Создаём пользователя-капитана (без ФИО)
+        const captainEmail = `captain_${Date.now()}@quiz.local`;
+        const user = await User.createSimple('Капитан отдела', captainEmail);
         
-        const user = await User.create({ fullName, email, code });
+        // Создаём команду (отдел)
+        const team = await Team.createSimple(teamName.trim(), user.id);
+        
+        // Обновляем пользователя
+        await User.updateTeamId(user.id, team.id);
+        
+        // Генерируем токен
         const token = generateToken(user);
         
-        console.log('✅ Пользователь создан:', { id: user.id, fullName: user.full_name, role: user.role });
+        console.log('✅ Отдел создан:', { teamId: team.id, teamName: team.name });
         
         res.json({
             success: true,
@@ -41,13 +42,17 @@ router.post('/register', async (req, res) => {
                 fullName: user.full_name,
                 email: user.email,
                 role: user.role,
-                teamId: null,
-                isFinalist: user.is_finalist === 1
+                teamId: team.id,
+                isFinalist: false
+            },
+            data: {
+                teamId: team.id,
+                teamName: team.name
             }
         });
     } catch (error) {
         console.error('❌ Ошибка регистрации:', error);
-        res.status(500).json({ success: false, message: 'Ошибка регистрации' });
+        res.status(500).json({ success: false, message: 'Ошибка создания отдела' });
     }
 });
 
@@ -60,8 +65,6 @@ router.get('/me', verifyToken, async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
         
-        console.log('📖 getMe:', { id: user.id, fullName: user.full_name, role: user.role, isFinalist: user.is_finalist });
-        
         res.json({
             success: true,
             data: {
@@ -70,7 +73,7 @@ router.get('/me', verifyToken, async (req, res) => {
                 email: user.email,
                 role: user.role,
                 teamId: user.team_id,
-                isFinalist: user.is_finalist === 1  // ✅ Преобразуем в boolean
+                isFinalist: user.is_finalist === 1
             }
         });
     } catch (error) {
@@ -79,18 +82,16 @@ router.get('/me', verifyToken, async (req, res) => {
     }
 });
 
-// Получение статуса финалиста текущего пользователя
+// Получение статуса финалиста
 router.get('/finalist-status', verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
         const user = await User.findById(userId);
         
-        console.log(`👑 Проверка статуса финалиста для пользователя ${userId}:`, user?.is_finalist);
-        
         res.json({
             success: true,
             data: {
-                isFinalist: user?.is_finalist === 1,  // ✅ Преобразуем в boolean
+                isFinalist: user?.is_finalist === 1,
                 userId: user?.id
             }
         });
@@ -100,28 +101,30 @@ router.get('/finalist-status', verifyToken, async (req, res) => {
     }
 });
 
-// Стать финалистом (дебаг режим)
+// Стать финалистом (дебаг)
 router.post('/become-finalist', verifyToken, async (req, res) => {
     try {
         const userId = req.user.id;
         
-        // Обновляем статус финалиста в базе данных
+        console.log(`👑 Пользователь ${userId} становится финалистом (дебаг)`);
+        
         await query('UPDATE users SET is_finalist = TRUE WHERE id = ?', [userId]);
         
-        console.log(`👑 Пользователь ${userId} стал финалистом (дебаг)`);
+        const updated = await query('SELECT is_finalist FROM users WHERE id = ?', [userId]);
+        console.log(`👑 После обновления: is_finalist = ${updated[0]?.is_finalist}`);
         
         res.json({ 
             success: true, 
             data: {
                 isFinalist: true
             },
-            message: 'Вы стали финалистом! Теперь вам доступен Тур 2.' 
+            message: 'Отдел прошёл в финал!' 
         });
     } catch (error) {
         console.error('❌ Ошибка при назначении финалиста:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Ошибка при назначении финалиста' 
+            message: 'Ошибка при назначении финалиста: ' + error.message
         });
     }
 });

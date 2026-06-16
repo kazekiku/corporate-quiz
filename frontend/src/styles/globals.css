@@ -208,7 +208,7 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   position: relative;
   overflow: hidden;
 }
-.register-page::before, .quiz-page::before, .rating-page::before, .final-page::before {
+.register-page::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -313,34 +313,51 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
 }
 
 /* =====================================================
-   QUIZ PAGE
+   QUIZ PAGE (ЦЕНТРИРОВАННЫЙ)
 ===================================================== */
-.quiz-page, .rating-page, .final-page {
+.quiz-layout-centered {
   min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 24px;
   background: radial-gradient(circle at top, rgba(59,130,246,.15), transparent 40%), linear-gradient(180deg, #061225, #071a35);
   position: relative;
 }
-.quiz-page::before, .rating-page::before, .final-page::before { position: fixed; }
-.quiz-card {
+.quiz-layout-centered::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
+
+.quiz-container {
   width: 100%;
-  max-width: 720px;
-  background: rgba(20,35,65,.95);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 32px;
-  padding: 28px;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 20px 60px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
+  max-width: 800px;
+  margin: 0 auto;
   position: relative;
   z-index: 1;
 }
-.quiz-header, .final-header {
+
+.quiz-card {
+  background: rgba(20,35,65,.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 32px;
+  padding: 32px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.quiz-header {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 24px;
 }
-.quiz-logo, .final-logo {
+
+.quiz-logo {
   width: 56px;
   height: 56px;
   border-radius: 18px;
@@ -351,9 +368,28 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   font-size: 24px;
   box-shadow: 0 10px 25px rgba(59,130,246,0.35);
 }
-.quiz-header h1, .final-header h1 { margin: 0; font-size: 36px; color: white; }
-.quiz-header p, .final-header p { margin: 6px 0 0; color: rgba(255,255,255,0.55); font-size: 14px; }
-.quiz-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+
+.quiz-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
+.quiz-header p {
+  margin: 6px 0 0;
+  color: rgba(255,255,255,0.55);
+  font-size: 14px;
+}
+
+.quiz-stats-centered {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
 .stat-pill {
   height: 52px;
   display: flex;
@@ -366,27 +402,34 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   font-size: 14px;
   gap: 8px;
 }
+
 .stat-pill.timer { color: #ffb84d; }
-.current-player-card {
-  background: rgba(59,130,246,0.15);
-  border: 1px solid rgba(59,130,246,0.4);
-  border-radius: 20px;
-  padding: 16px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-.current-player-label { font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 1px; margin-bottom: 6px; }
-.current-player-name { font-size: 24px; font-weight: 700; color: #4b8cff; }
 
 .question-card {
   background: rgba(255,255,255,.05);
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 24px;
-  padding: 24px;
+  padding: 32px;
   margin-bottom: 24px;
+  text-align: center;
 }
-.question-category { color: rgba(255,255,255,.5); font-size: 12px; letter-spacing: 1px; margin-bottom: 12px; }
-.question-card h2 { color: white; font-size: 20px; font-weight: 700; line-height: 1.5; margin-bottom: 16px; }
+
+.question-category {
+  color: rgba(255,255,255,.5);
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.question-card h2 {
+  font-size: 24px;
+  line-height: 1.4;
+  margin: 16px 0;
+  color: white;
+  font-weight: 700;
+}
+
 .difficulty-badge {
   display: inline-flex;
   padding: 6px 14px;
@@ -397,14 +440,20 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   font-weight: 700;
 }
 
-.answers { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
 .answer-btn {
   width: 100%;
   min-height: 68px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 22px;
+  gap: 16px;
+  padding: 0 24px;
   border-radius: 20px;
   border: 1px solid rgba(255,255,255,.08);
   background: rgba(255,255,255,.05);
@@ -412,68 +461,116 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: .2s;
+  transition: all 0.2s ease;
+  text-align: left;
 }
-.answer-btn:hover:not(:disabled) { border-color: #4b8cff; background: rgba(75,140,255,.1); transform: translateY(-2px); }
-.answer-btn.correct { border-color: #10b981; background: rgba(16,185,129,.15); color: #34d399; }
-.answer-btn.wrong { border-color: #ef4444; background: rgba(239,68,68,.15); color: #ff8a8a; }
-.answer-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-.answer-btn span { font-weight: 700; font-size: 18px; color: rgba(255,255,255,0.7); }
+
+.answer-btn:hover:not(:disabled) {
+  border-color: #4b8cff;
+  background: rgba(75,140,255,.1);
+  transform: translateX(5px);
+}
+
+.answer-btn span {
+  font-weight: 700;
+  font-size: 20px;
+  color: #4b8cff;
+  min-width: 32px;
+}
+
+.answer-btn.correct {
+  border-color: #10b981;
+  background: rgba(16,185,129,.15);
+  color: #34d399;
+}
+
+.answer-btn.wrong {
+  border-color: #ef4444;
+  background: rgba(239,68,68,.15);
+  color: #ff8a8a;
+}
+
+.answer-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
 
 .result-card {
   background: rgba(0,0,0,.3);
   border-radius: 20px;
-  padding: 16px;
-  margin-bottom: 24px;
+  padding: 20px;
   text-align: center;
+  animation: notificationPop 0.4s ease-out;
 }
-.result-card.correct { border: 1px solid rgba(16,185,129,.3); background: rgba(16,185,129,.1); }
-.result-card.wrong { border: 1px solid rgba(239,68,68,.3); background: rgba(239,68,68,.1); }
-.result-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-.result-title.correct { color: #34d399; }
-.result-title.wrong { color: #ff8a8a; }
-.result-points { font-size: 14px; color: rgba(255,255,255,0.6); }
 
-.team-list-card {
-  background: rgba(255,255,255,.04);
-  border-radius: 20px;
-  padding: 16px;
-  margin-top: 20px;
+.result-card.correct {
+  border: 1px solid rgba(16,185,129,.3);
+  background: rgba(16,185,129,.1);
 }
-.team-list-title { font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 1px; margin-bottom: 12px; }
-.team-member-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-radius: 14px;
-  margin-bottom: 6px;
-  background: rgba(255,255,255,.03);
+
+.result-card.wrong {
+  border: 1px solid rgba(239,68,68,.3);
+  background: rgba(239,68,68,.1);
 }
-.team-member-item.current { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); }
-.team-member-name { font-weight: 500; display: flex; align-items: center; gap: 8px; }
-.team-member-status {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  background: rgba(255,255,255,.05);
+
+.result-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
 }
-.team-member-status.active { background: rgba(59,130,246,.2); color: #4b8cff; }
+
+.result-title.correct {
+  color: #34d399;
+}
+
+.result-title.wrong {
+  color: #ff8a8a;
+}
+
+.result-points {
+  font-size: 16px;
+  color: rgba(255,255,255,0.6);
+}
+
+.score-increase {
+  animation: scoreIncrease 0.3s ease-out;
+}
 
 @media (max-width: 640px) {
-  .quiz-card { padding: 20px; }
-  .quiz-header h1 { font-size: 28px; }
-  .quiz-stats { gap: 8px; }
-  .stat-pill { height: 44px; font-size: 12px; }
-  .current-player-name { font-size: 20px; }
-  .question-card h2 { font-size: 17px; }
-  .answer-btn { min-height: 56px; font-size: 14px; padding: 0 16px; }
+  .quiz-stats-centered {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .quiz-card {
+    padding: 20px;
+  }
+  
+  .question-card h2 {
+    font-size: 18px;
+  }
+  
+  .question-card {
+    padding: 20px;
+  }
+  
+  .answer-btn {
+    min-height: 56px;
+    font-size: 14px;
+    padding: 0 16px;
+  }
+  
+  .answer-btn span {
+    font-size: 16px;
+    min-width: 28px;
+  }
 }
 
 /* =====================================================
    RATING PAGE
 ===================================================== */
-.rating-page { display: flex; justify-content: center; align-items: center; }
+.rating-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 24px; background: radial-gradient(circle at top, rgba(59,130,246,.15), transparent 40%), linear-gradient(180deg, #061225, #071a35); position: relative; }
+.rating-page::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 50px 50px; pointer-events: none; }
 .rating-card {
   position: relative;
   z-index: 1;
@@ -629,12 +726,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
 /* =====================================================
    TOUR MODAL
 ===================================================== */
-.grid { display: grid; }
-.grid-cols-2 { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.cursor-pointer { cursor: pointer; }
-.border-primary { border-color: var(--primary); }
-.border-border { border-color: var(--border); }
-.tour-modal { padding: 0; }
 .tour-modal-header {
   height: 72px;
   display: flex;
@@ -690,127 +781,10 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
 .modal-content.tour-modal-content { max-width: 1000px; width: 100%; }
 
 /* =====================================================
-   ANIMATIONS
-===================================================== */
-@keyframes glow { 0%,100% { filter: drop-shadow(0 0 2px #f0c564); } 50% { filter: drop-shadow(0 0 8px #f0c564); } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes shrink { from { width: 100%; } to { width: 0%; } }
-@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
-.tour-modal-header-cup { animation: glow 2s ease-in-out infinite; }
-.animate-slide-up { animation: slideUp 0.3s ease-out; }
-.animate-shrink { animation: shrink 5s linear forwards; }
-
-/* =====================================================
-   TWO COLUMN LAYOUT (викторина)
-===================================================== */
-.quiz-layout {
-  min-height: 100vh;
-  display: flex;
-  padding: 24px;
-  background: radial-gradient(circle at top, rgba(59,130,246,.15), transparent 40%), linear-gradient(180deg, #061225, #071a35);
-  position: relative;
-  gap: 24px;
-}
-.quiz-sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  position: sticky;
-  top: 24px;
-  height: fit-content;
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
-}
-.quiz-main { flex: 1; display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 48px); }
-.quiz-question-card {
-  width: 100%;
-  max-width: 680px;
-  background: rgba(20,35,65,.95);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 32px;
-  padding: 28px;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 20px 60px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
-}
-.team-info-card {
-  background: rgba(20,35,65,.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 32px;
-  padding: 24px;
-}
-.team-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255,255,255,.1);
-}
-.team-icon {
-  width: 52px;
-  height: 52px;
-  background: linear-gradient(135deg, #4b8cff, #2456d8);
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-}
-.team-name { font-size: 18px; font-weight: 700; color: white; }
-.team-score { font-size: 14px; color: #f0c564; }
-.team-stats {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255,255,255,.1);
-}
-.stat-item { flex: 1; display: flex; justify-content: space-between; color: rgba(255,255,255,.6); font-size: 13px; }
-.stat-value { color: #ffb84d; font-weight: 600; }
-.current-player-badge {
-  background: rgba(59,130,246,0.15);
-  border: 1px solid rgba(59,130,246,0.4);
-  border-radius: 20px;
-  padding: 16px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-.current-label { font-size: 11px; color: rgba(255,255,255,.5); letter-spacing: 1px; margin-bottom: 6px; }
-.current-name { font-size: 18px; font-weight: 700; color: #4b8cff; }
-.you-badge { font-size: 12px; margin-left: 6px; color: rgba(255,255,255,.6); }
-.captain-note { font-size: 11px; color: #f59e0b; margin-top: 8px; }
-.players-list { margin-top: 8px; }
-.players-title { font-size: 11px; color: rgba(255,255,255,.5); letter-spacing: 1px; margin-bottom: 12px; }
-.player-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  margin-bottom: 6px;
-  background: rgba(255,255,255,.03);
-}
-.player-item.active { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); }
-.player-avatar { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-.player-name { flex: 1; font-size: 14px; font-weight: 500; color: white; }
-.you-tag { font-size: 10px; color: #4b8cff; margin-left: 6px; }
-.player-status { font-size: 14px; color: rgba(255,255,255,.5); }
-.player-item.active .player-status { color: #4b8cff; }
-.quiz-question-card .quiz-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-.quiz-question-card .quiz-header h1 { margin: 0; font-size: 28px; font-weight: 700; color: white; line-height: 1; }
-.quiz-question-card .quiz-header p { margin: 6px 0 0; color: rgba(255,255,255,0.55); font-size: 14px; }
-
-@media (max-width: 768px) {
-  .quiz-layout { flex-direction: column; padding: 16px; gap: 16px; }
-  .quiz-sidebar { width: 100%; position: static; max-height: none; }
-  .quiz-main { min-height: auto; }
-  .quiz-question-card, .team-info-card { padding: 20px; }
-  .quiz-question-card .quiz-header h1 { font-size: 24px; }
-}
-
-/* =====================================================
    FINAL PAGE
 ===================================================== */
+.final-page { min-height: 100vh; padding: 24px; background: radial-gradient(circle at top, rgba(59,130,246,.15), transparent 40%), linear-gradient(180deg, #061225, #071a35); position: relative; }
+.final-page::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 50px 50px; pointer-events: none; }
 .final-container { max-width: 1400px; margin: 0 auto; position: relative; z-index: 1; }
 .final-card {
   background: rgba(20,35,65,.95);
@@ -940,10 +914,11 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   .final-logo { width: 44px; height: 44px; font-size: 20px; }
   .final-question-text { font-size: 18px; }
   .final-bet-title { font-size: 22px; }
-}/* =====================================================
+}
+
+/* =====================================================
    LOBBY PAGE
 ===================================================== */
-
 .lobby-page {
   min-height: 100vh;
   display: flex;
@@ -954,6 +929,14 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
               linear-gradient(180deg, #061225, #071a35);
   position: relative;
 }
+.lobby-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
 
 .lobby-container {
   max-width: 600px;
@@ -963,7 +946,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   z-index: 1;
 }
 
-/* Шапка */
 .lobby-header {
   display: flex;
   align-items: center;
@@ -974,7 +956,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   border-radius: 32px;
   padding: 24px 28px;
   margin-bottom: 24px;
-  position: relative;
 }
 
 .lobby-logo {
@@ -1002,31 +983,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   font-size: 14px;
 }
 
-.lobby-code {
-  font-family: monospace;
-  font-size: 16px;
-  font-weight: 700;
-  color: #f0c564;
-  letter-spacing: 2px;
-  background: rgba(240,197,100,0.1);
-  padding: 2px 8px;
-  border-radius: 8px;
-}
-
-.lobby-mode-badge {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  background: rgba(239,68,68,0.15);
-  color: #ef4444;
-  letter-spacing: 1px;
-}
-
-/* Обратный отсчёт */
 .lobby-countdown {
   background: linear-gradient(135deg, #1a2a4a, #0f1a30);
   border-radius: 32px;
@@ -1049,7 +1005,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   margin-top: 8px;
 }
 
-/* Карточка команды */
 .lobby-team-card {
   background: rgba(20,35,65,.95);
   backdrop-filter: blur(20px);
@@ -1076,16 +1031,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   letter-spacing: 1px;
 }
 
-.team-members-count {
-  font-size: 14px;
-  font-weight: 600;
-  color: #4b8cff;
-  background: rgba(75,140,255,0.1);
-  padding: 4px 12px;
-  border-radius: 20px;
-}
-
-/* Список участников */
 .team-members-list {
   display: flex;
   flex-direction: column;
@@ -1104,19 +1049,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   border: 1px solid transparent;
 }
 
-.team-member.active {
-  background: rgba(255,255,255,.05);
-}
-
-.team-member.empty {
-  opacity: 0.5;
-}
-
-.team-member.current-user {
-  background: rgba(59,130,246,0.1);
-  border-color: rgba(59,130,246,0.3);
-}
-
 .member-avatar {
   width: 44px;
   height: 44px;
@@ -1126,10 +1058,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   align-items: center;
   justify-content: center;
   font-size: 22px;
-}
-
-.team-member.active .member-avatar {
-  background: linear-gradient(135deg, #2a3a6a, #1a2a4a);
 }
 
 .member-info {
@@ -1164,75 +1092,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   border-radius: 12px;
 }
 
-.member-status {
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.member-status.ready {
-  color: #10b981;
-}
-
-.member-status.not-ready {
-  color: #ef4444;
-}
-
-.member-ready-btn {
-  padding: 8px 20px;
-  background: linear-gradient(135deg, #10b981, #059669);
-  border: none;
-  border-radius: 14px;
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.member-ready-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16,185,129,0.3);
-}
-
-.member-ready-badge {
-  width: 32px;
-  height: 32px;
-  background: rgba(16,185,129,0.15);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  color: #10b981;
-}
-
-/* Кнопка добавления бота */
-.lobby-add-bot-btn {
-  width: 100%;
-  padding: 12px;
-  background: rgba(255,255,255,.05);
-  border: 1px dashed rgba(255,255,255,.15);
-  border-radius: 16px;
-  color: rgba(255,255,255,0.6);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.lobby-add-bot-btn:hover {
-  background: rgba(255,255,255,.08);
-  border-color: #4b8cff;
-  color: #4b8cff;
-}
-
-/* Информационная карточка */
 .lobby-info-card {
   background: rgba(0,0,0,.3);
   border-radius: 20px;
@@ -1274,15 +1133,10 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   color: #10b981;
 }
 
-.info-item.unmet {
-  color: rgba(255,255,255,0.4);
-}
-
 .info-item span {
   width: 16px;
 }
 
-/* Кнопка старта */
 .lobby-start-btn {
   width: 100%;
   padding: 18px;
@@ -1312,18 +1166,6 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   cursor: not-allowed;
 }
 
-/* Ожидание */
-.lobby-waiting {
-  text-align: center;
-  padding: 14px;
-  background: rgba(245,158,11,0.1);
-  border-radius: 20px;
-  color: #f59e0b;
-  font-size: 14px;
-  margin-bottom: 16px;
-}
-
-/* Кнопка назад */
 .lobby-back-btn {
   width: 100%;
   padding: 14px;
@@ -1343,393 +1185,131 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   color: white;
 }
 
-/* Адаптив */
 @media (max-width: 640px) {
   .lobby-page { padding: 16px; }
   .lobby-header { flex-direction: column; text-align: center; padding: 20px; }
   .lobby-header h1 { font-size: 24px; }
   .lobby-logo { width: 56px; height: 56px; font-size: 28px; }
-  .lobby-mode-badge { position: static; display: inline-block; margin-top: 8px; }
   .team-member { padding: 10px 12px; }
   .member-avatar { width: 38px; height: 38px; font-size: 18px; }
   .member-name { font-size: 14px; }
-  .member-ready-btn { padding: 6px 14px; font-size: 12px; }
   .lobby-start-btn { padding: 14px; font-size: 16px; }
 }
-/* Анимация для LED */
+
+/* =====================================================
+   ANIMATIONS
+===================================================== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-50px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(50px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(1.2); }
 }
-
-.animate-pulse {
-  animation: pulse 1.5s ease-in-out infinite;
+@keyframes questionFlip {
+  0% { opacity: 0; transform: rotateX(-15deg) translateY(20px); }
+  100% { opacity: 1; transform: rotateX(0) translateY(0); }
 }
-
-/* Стили для NeonBorder компонентов */
-.neon-border-blue {
-  border-color: #2A6DFF;
-  box-shadow: 0 0 10px #2A6DFF;
+@keyframes correctAnswer {
+  0% { transform: scale(1); background: rgba(16,185,129,0); }
+  50% { transform: scale(1.05); background: rgba(16,185,129,0.3); }
+  100% { transform: scale(1); background: rgba(16,185,129,0.15); }
 }
-
-.neon-border-red {
-  border-color: #FF3366;
-  box-shadow: 0 0 10px #FF3366;
+@keyframes wrongAnswer {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+  100% { transform: translateX(0); }
 }
-
-.neon-border-green {
-  border-color: #00FF88;
-  box-shadow: 0 0 10px #00FF88;
+@keyframes notificationPop {
+  0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+  70% { transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
-
-.neon-border-yellow {
-  border-color: #F0C564;
-  box-shadow: 0 0 10px #F0C564;
+@keyframes scoreIncrease {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); color: #f0c564; }
+  100% { transform: scale(1); }
 }
-/* Добавь в конец CSS файла */
-
-/* =====================================================
-   ГЛОБАЛЬНЫЕ АНИМАЦИИ
-===================================================== */
-
-/* Плавное появление страницы */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
 }
-
-.fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+@keyframes timerWarning {
+  0%, 100% { color: #f59e0b; }
+  50% { color: #ef4444; text-shadow: 0 0 5px #ef4444; }
 }
-
-/* Плавное появление с задержкой */
-.fade-in-delay-1 { animation: fadeIn 0.5s ease-out 0.1s forwards; opacity: 0; }
-.fade-in-delay-2 { animation: fadeIn 0.5s ease-out 0.2s forwards; opacity: 0; }
-.fade-in-delay-3 { animation: fadeIn 0.5s ease-out 0.3s forwards; opacity: 0; }
-.fade-in-delay-4 { animation: fadeIn 0.5s ease-out 0.4s forwards; opacity: 0; }
-.fade-in-delay-5 { animation: fadeIn 0.5s ease-out 0.5s forwards; opacity: 0; }
-
-/* Выезжание слева */
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.slide-in-left {
-  animation: slideInLeft 0.5s ease-out forwards;
-}
-
-/* Выезжание справа */
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.slide-in-right {
-  animation: slideInRight 0.5s ease-out forwards;
-}
-
-/* Выезжание снизу */
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.slide-in-up {
-  animation: slideInUp 0.5s ease-out forwards;
-}
-
-/* Масштабирование */
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.scale-in {
-  animation: scaleIn 0.4s ease-out forwards;
-}
-
-/* Вращение для загрузки */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Пульсация для кнопок */
 @keyframes gentlePulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.02);
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
 }
-
-.pulse-gentle {
-  animation: gentlePulse 2s ease-in-out infinite;
-}
-
-/* Мерцание для важных элементов */
 @keyframes glowPulse {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(59,130,246,0.3);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(59,130,246,0.6);
-  }
+  0%, 100% { box-shadow: 0 0 5px rgba(59,130,246,0.3); }
+  50% { box-shadow: 0 0 20px rgba(59,130,246,0.6); }
 }
-
-.glow-pulse {
-  animation: glowPulse 2s ease-in-out infinite;
-}
-
-/* Анимация для карточек при наведении */
-.hover-lift {
-  transition: all 0.3s ease;
-}
-
-.hover-lift:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 30px rgba(0,0,0,0.3);
-}
-
-/* Анимация для кнопок при наведении */
-.hover-glow {
-  transition: all 0.3s ease;
-}
-
-.hover-glow:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 15px currentColor;
-}
-
-/* Мигание для LED */
 @keyframes ledBlink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
 
-.led-blink {
-  animation: ledBlink 1s ease-in-out infinite;
-}
-
-/* Анимация для вопросов (смена вопроса) */
-@keyframes questionFlip {
-  0% {
-    opacity: 0;
-    transform: rotateX(-15deg) translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: rotateX(0) translateY(0);
-  }
-}
-
-.question-flip {
-  animation: questionFlip 0.4s ease-out forwards;
-}
-
-/* Анимация для правильного ответа */
-@keyframes correctAnswer {
-  0% {
-    transform: scale(1);
-    background: rgba(16,185,129,0);
-  }
-  50% {
-    transform: scale(1.05);
-    background: rgba(16,185,129,0.3);
-  }
-  100% {
-    transform: scale(1);
-    background: rgba(16,185,129,0.15);
-  }
-}
-
-.correct-flash {
-  animation: correctAnswer 0.5s ease-out;
-}
-
-/* Анимация для неправильного ответа */
-@keyframes wrongAnswer {
-  0% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-5px);
-  }
-  75% {
-    transform: translateX(5px);
-  }
-  100% {
-    transform: translateX(0);
-  }
-}
-
-.wrong-shake {
-  animation: wrongAnswer 0.3s ease-in-out;
-}
-
-/* Анимация для таймера */
-@keyframes timerWarning {
-  0%, 100% {
-    color: #f59e0b;
-  }
-  50% {
-    color: #ef4444;
-    text-shadow: 0 0 5px #ef4444;
-  }
-}
-
-.timer-warning {
-  animation: timerWarning 1s ease-in-out infinite;
-}
-
-/* Анимация для появления уведомления */
-@keyframes notificationPop {
-  0% {
-    opacity: 0;
-    transform: scale(0.8) translateY(20px);
-  }
-  70% {
-    transform: scale(1.05);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.notification-pop {
-  animation: notificationPop 0.4s ease-out forwards;
-}
-
-/* Анимация для конфетти (победа) */
-@keyframes confetti {
-  0% {
-    transform: translateY(-100vh) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(100vh) rotate(720deg);
-    opacity: 0;
-  }
-}
-
-/* Анимация для загрузки */
-@keyframes loadingPulse {
-  0%, 100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.loading-dot {
-  animation: loadingPulse 1.4s ease-in-out infinite;
-}
-
+/* Animation classes */
+.fade-in { animation: fadeIn 0.5s ease-out forwards; }
+.fade-in-delay-1 { animation: fadeIn 0.5s ease-out 0.1s forwards; opacity: 0; }
+.fade-in-delay-2 { animation: fadeIn 0.5s ease-out 0.2s forwards; opacity: 0; }
+.fade-in-delay-3 { animation: fadeIn 0.5s ease-out 0.3s forwards; opacity: 0; }
+.fade-in-delay-4 { animation: fadeIn 0.5s ease-out 0.4s forwards; opacity: 0; }
+.slide-in-left { animation: slideInLeft 0.5s ease-out forwards; }
+.slide-in-right { animation: slideInRight 0.5s ease-out forwards; }
+.slide-in-up { animation: slideInUp 0.5s ease-out forwards; }
+.scale-in { animation: scaleIn 0.4s ease-out forwards; }
+.question-flip { animation: questionFlip 0.4s ease-out forwards; }
+.correct-flash { animation: correctAnswer 0.5s ease-out; }
+.wrong-shake { animation: wrongAnswer 0.3s ease-in-out; }
+.notification-pop { animation: notificationPop 0.4s ease-out forwards; }
+.score-increase { animation: scoreIncrease 0.3s ease-out; }
+.timer-warning { animation: timerWarning 1s ease-in-out infinite; }
+.pulse-gentle { animation: gentlePulse 2s ease-in-out infinite; }
+.glow-pulse { animation: glowPulse 2s ease-in-out infinite; }
+.led-blink { animation: ledBlink 1s ease-in-out infinite; }
+.loading-dot { animation: loadingPulse 1.4s ease-in-out infinite; }
 .loading-dot:nth-child(2) { animation-delay: 0.2s; }
 .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+.animate-pulse { animation: pulse 1.5s ease-in-out infinite; }
 
-/* Анимация для перехода между вопросами */
-@keyframes slideTransition {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
+/* Hover effects */
+.hover-lift { transition: all 0.3s ease; }
+.hover-lift:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
+.hover-glow { transition: all 0.3s ease; }
+.hover-glow:hover { transform: translateY(-2px); box-shadow: 0 0 15px currentColor; }
 
-.slide-transition {
-  animation: slideTransition 0.3s ease-out;
-}
-
-/* Анимация для счёта */
-@keyframes scoreIncrease {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.2);
-    color: #f0c564;
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.score-increase {
-  animation: scoreIncrease 0.3s ease-out;
-}
-
-/* =====================================================
-   ПРИМЕНЕНИЕ АНИМАЦИЙ К СТРАНИЦАМ
-===================================================== */
-
-/* Анимация для страниц при загрузке */
-.register-page, .rating-page, .final-page, .lobby-page, .quiz-page {
-  animation: fadeIn 0.4s ease-out;
-}
-
-/* Анимация для карточек */
-.register-card, .rating-card, .final-card, .lobby-team-card, .quiz-card, .quiz-question-card {
-  animation: scaleIn 0.4s ease-out;
-}
-
-/* Анимация для кнопок */
 .btn, .register-btn, .lobby-start-btn, .lobby-back-btn {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
-
 .btn:hover, .register-btn:hover, .lobby-start-btn:hover, .lobby-back-btn:hover {
   transform: translateY(-2px);
 }
-
 .btn:active, .register-btn:active, .lobby-start-btn:active {
   transform: translateY(0);
 }
-
-/* Эффект ripple для кнопок */
 .btn::after, .register-btn::after, .lobby-start-btn::after {
   content: '';
   position: absolute;
@@ -1742,60 +1322,593 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
   transform: translate(-50%, -50%);
   transition: width 0.6s, height 0.6s;
 }
-
 .btn:active::after, .register-btn:active::after, .lobby-start-btn:active::after {
   width: 300px;
   height: 300px;
 }
 
-/* Анимация для элементов команды */
-.team-member, .player-item {
+.team-member, .player-item, .rating-row, .answer-btn {
   transition: all 0.3s ease;
 }
-
-.team-member:hover, .player-item:hover {
+.team-member:hover, .player-item:hover, .rating-row:hover {
   transform: translateX(5px);
   background: rgba(255,255,255,0.08);
 }
-
-/* Анимация для вопросов */
-.answer-btn {
-  transition: all 0.2s ease;
-}
-
 .answer-btn:hover:not(:disabled) {
   transform: translateX(5px);
 }
 
-/* Анимация для таблицы рейтинга */
-.rating-row {
+.modal-overlay { animation: fadeIn 0.2s ease-out; }
+.modal-content { animation: scaleIn 0.3s ease-out; }
+.chat-panel { animation: slideInRight 0.3s ease-out; }
+.chat-message { animation: slideInLeft 0.2s ease-out; }
+.boss-notification { animation: slideInUp 0.3s ease-out; }
+
+/* Neon border styles */
+.neon-border-blue { border-color: #2A6DFF; box-shadow: 0 0 10px #2A6DFF; }
+.neon-border-red { border-color: #FF3366; box-shadow: 0 0 10px #FF3366; }
+.neon-border-green { border-color: #00FF88; box-shadow: 0 0 10px #00FF88; }
+.neon-border-yellow { border-color: #F0C564; box-shadow: 0 0 10px #F0C564; }
+
+/* Page animations */
+.register-page, .rating-page, .final-page, .lobby-page, .quiz-page {
+  animation: fadeIn 0.4s ease-out;
+}
+.register-card, .rating-card, .final-card, .lobby-team-card, .quiz-card {
+  animation: scaleIn 0.4s ease-out;
+}
+/* Стили для выбора тура */
+.tour-card {
   transition: all 0.3s ease;
 }
 
-.rating-row:hover {
+.tour-card:hover:not(.locked) {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.tour-card.selected {
+  transform: translateY(-3px);
+}
+
+.tour-card.locked {
+  filter: grayscale(0.3);
+}
+/* =====================================================
+   LOBBY PAGE - ОБНОВЛЁННЫЙ
+===================================================== */
+.lobby-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at top, rgba(59,130,246,.15), transparent 40%),
+              linear-gradient(180deg, #061225, #071a35);
+  position: relative;
+}
+.lobby-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), 
+                    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
+
+.lobby-container {
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.lobby-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: rgba(20,35,65,.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 40px;
+  padding: 28px 36px;
+  margin-bottom: 28px;
+  animation: slideInLeft 0.5s ease-out;
+}
+
+.lobby-logo {
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(135deg, #4b8cff, #2456d8);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  box-shadow: 0 10px 30px rgba(59,130,246,0.4);
+}
+
+.lobby-header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: white;
+}
+
+.lobby-subtitle {
+  margin: 8px 0 0;
+  color: rgba(255,255,255,0.55);
+  font-size: 15px;
+}
+
+/* Правила игры */
+.lobby-rules-card {
+  background: rgba(20,35,65,.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 32px;
+  padding: 28px;
+  margin-bottom: 28px;
+  animation: scaleIn 0.4s ease-out 0.1s both;
+}
+
+.rules-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+
+.rules-icon {
+  font-size: 28px;
+}
+
+.rules-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f0c564;
+  letter-spacing: 1px;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.rule-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(255,255,255,.03);
+  border-radius: 24px;
+  transition: all 0.3s ease;
+}
+
+.rule-item:hover {
+  background: rgba(255,255,255,.06);
   transform: translateX(5px);
-  background: rgba(255,255,255,0.05);
 }
 
-/* Анимация для модальных окон */
-.modal-overlay {
-  animation: fadeIn 0.2s ease-out;
+.rule-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(59,130,246,0.15);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
 }
 
-.modal-content {
-  animation: scaleIn 0.3s ease-out;
+.rule-content {
+  flex: 1;
 }
 
-/* Анимация для чата */
-.chat-panel {
-  animation: slideInRight 0.3s ease-out;
+.rule-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
 }
 
-.chat-message {
-  animation: slideInLeft 0.2s ease-out;
+.rule-desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
 }
 
-/* Анимация для уведомлений */
-.boss-notification {
-  animation: slideInUp 0.3s ease-out;
+/* Обратный отсчёт */
+.lobby-countdown {
+  background: linear-gradient(135deg, rgba(240,197,100,0.15), rgba(240,197,100,0.05));
+  border-radius: 40px;
+  padding: 32px;
+  text-align: center;
+  margin-bottom: 28px;
+  border: 1px solid rgba(240,197,100,0.3);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.countdown-number {
+  font-size: 72px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f0c564, #ffbe55);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1;
+}
+
+.countdown-text {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  margin-top: 12px;
+}
+
+/* Кнопки */
+.lobby-start-btn {
+  width: 100%;
+  padding: 20px;
+  border: none;
+  border-radius: 40px;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+}
+
+.lobby-start-btn.ready {
+  background: linear-gradient(135deg, #4b8cff, #2456d8);
+  color: white;
+  box-shadow: 0 10px 30px rgba(59,130,246,0.4);
+}
+
+.lobby-start-btn.ready:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 35px rgba(59,130,246,0.5);
+}
+
+.lobby-start-btn.disabled {
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,0.4);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.lobby-back-btn {
+  width: 100%;
+  padding: 16px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 40px;
+  color: rgba(255,255,255,0.6);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.lobby-back-btn:hover {
+  background: rgba(255,255,255,.05);
+  border-color: rgba(255,255,255,.25);
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Адаптив */
+@media (max-width: 640px) {
+  .lobby-page { padding: 16px; }
+  
+  .lobby-header { 
+    flex-direction: column; 
+    text-align: center; 
+    padding: 24px 20px;
+    gap: 16px;
+  }
+  
+  .lobby-header h1 { font-size: 24px; }
+  .lobby-logo { width: 56px; height: 56px; font-size: 28px; }
+  
+  .rules-grid { grid-template-columns: 1fr; gap: 12px; }
+  .rule-item { padding: 12px; }
+  .rule-icon { width: 40px; height: 40px; font-size: 20px; }
+  
+  .lobby-start-btn { padding: 16px; font-size: 18px; }
+  .countdown-number { font-size: 56px; }
+}
+/* =====================================================
+   MAIN PAGE (КОРПОРАТИВНЫЕ БОИ) - КОМПАКТНАЯ ВЕРСИЯ
+===================================================== */
+
+.battle-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+
+  background:
+    radial-gradient(circle at top, rgba(59,130,246,.15), transparent 40%),
+    linear-gradient(180deg, #061225, #071a35);
+}
+
+.battle-card {
+  width: 100%;
+  max-width: 900px;
+
+  background: rgba(20,35,65,.95);
+  backdrop-filter: blur(20px);
+
+  border-radius: 32px;
+  border: 1px solid rgba(255,255,255,.08);
+
+  overflow: hidden;
+
+  box-shadow: 0 30px 80px rgba(0,0,0,.45);
+}
+
+.battle-header {
+  text-align: center;
+  padding: 32px 32px 24px;
+}
+
+.battle-trophy {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.battle-header h1 {
+  margin: 0;
+
+  font-size: 32px;
+  font-weight: 800;
+
+  letter-spacing: 2px;
+
+  color: #f0c564;
+}
+
+.battle-header p {
+  margin-top: 8px;
+
+  color: rgba(255,255,255,.55);
+
+  font-size: 14px;
+}
+
+.battle-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-top: 12px;
+
+  height: 32px;
+  padding: 0 20px;
+
+  border-radius: 999px;
+
+  background: rgba(75,140,255,.15);
+
+  border: 1px solid rgba(75,140,255,.25);
+
+  color: #4b8cff;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.battle-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #4b8cff, #f0c564, #4b8cff, transparent);
+}
+
+.battle-content {
+  padding: 32px 40px 40px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.battle-start-btn {
+  width: 100%;
+  max-width: 500px;
+
+  min-height: 64px;
+
+  border: none;
+  border-radius: 40px;
+
+  cursor: pointer;
+
+  font-size: 18px;
+  font-weight: 700;
+
+  color: white;
+
+  background: linear-gradient(135deg, #4b8cff, #2456d8);
+
+  box-shadow: 0 10px 25px rgba(59,130,246,.3);
+
+  transition: all .25s ease;
+}
+
+.battle-start-btn:hover {
+  transform: translateY(-2px);
+
+  box-shadow: 0 15px 35px rgba(59,130,246,.4);
+}
+
+.battle-team-card {
+  width: 100%;
+  max-width: 600px;
+
+  margin-top: 32px;
+
+  text-align: center;
+
+  background: rgba(255,255,255,.03);
+
+  border: 1px solid rgba(255,255,255,.06);
+
+  border-radius: 24px;
+
+  padding: 24px;
+}
+
+.battle-status-pill {
+  display: inline-block;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  margin-bottom: 10px;
+}
+
+.battle-team-card h2 {
+  margin: 0;
+
+  color: white;
+
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.battle-team-card p {
+  margin-top: 6px;
+
+  color: rgba(255,255,255,.5);
+
+  font-size: 13px;
+}
+
+.battle-stats {
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+
+  margin-top: 20px;
+}
+
+.battle-stat {
+  text-align: center;
+}
+
+.battle-stat strong {
+  display: block;
+
+  font-size: 28px;
+  font-weight: 800;
+
+  color: #f0c564;
+}
+
+.battle-stat span {
+  color: rgba(255,255,255,.55);
+
+  font-size: 11px;
+}
+
+.battle-actions {
+  display: flex;
+  gap: 12px;
+
+  margin-top: 28px;
+}
+
+.battle-secondary-btn {
+  min-width: 160px;
+
+  height: 48px;
+
+  border-radius: 40px;
+
+  border: 1px solid rgba(255,255,255,.08);
+
+  background: rgba(255,255,255,.04);
+
+  color: rgba(255,255,255,.8);
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: all .25s ease;
+}
+
+.battle-secondary-btn:hover {
+  background: rgba(255,255,255,.08);
+
+  border-color: rgba(255,255,255,.15);
+
+  transform: translateY(-2px);
+}
+
+/* Адаптив */
+
+@media (max-width: 640px) {
+  .battle-page {
+    padding: 16px;
+  }
+
+  .battle-card {
+    border-radius: 24px;
+  }
+
+  .battle-header {
+    padding: 24px 20px 16px;
+  }
+
+  .battle-header h1 {
+    font-size: 24px;
+  }
+
+  .battle-header p {
+    font-size: 12px;
+  }
+
+  .battle-content {
+    padding: 24px 20px 28px;
+  }
+
+  .battle-start-btn {
+    font-size: 16px;
+    min-height: 56px;
+  }
+
+  .battle-team-card {
+    margin-top: 24px;
+    padding: 20px;
+  }
+
+  .battle-team-card h2 {
+    font-size: 22px;
+  }
+
+  .battle-stats {
+    gap: 32px;
+  }
+
+  .battle-stat strong {
+    font-size: 24px;
+  }
+
+  .battle-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .battle-secondary-btn {
+    width: 100%;
+  }
 }

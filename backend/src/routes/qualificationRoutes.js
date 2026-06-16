@@ -1,4 +1,3 @@
-// backend/src/routes/qualificationRoutes.js
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
@@ -53,24 +52,7 @@ router.get('/questions', verifyToken, async (req, res) => {
         res.json({ success: true, data: result });
     } catch (error) {
         console.error('❌ Ошибка загрузки вопросов:', error);
-        
-        const testQuestions = [];
-        for (let i = 1; i <= 25; i++) {
-            testQuestions.push({
-                id: i,
-                text: `Вопрос ${i}: Тестовый вопрос`,
-                options: {
-                    A: 'Вариант А',
-                    B: 'Вариант Б',
-                    C: 'Вариант В',
-                    D: 'Вариант Г'
-                },
-                correct: 'A',
-                points: req.query.gameMode === 'qualification' ? 10 : 20
-            });
-        }
-        
-        res.json({ success: true, data: testQuestions });
+        res.status(500).json({ success: false, message: 'Ошибка загрузки вопросов' });
     }
 });
 
@@ -193,13 +175,16 @@ router.post('/complete/:teamId', verifyToken, async (req, res) => {
         
         console.log(`🏁 Завершение квалификации для команды: ${teamId}`);
         
-        const members = await query(`
-            SELECT u.id, u.full_name 
-            FROM team_members tm
-            JOIN users u ON tm.user_id = u.id
-            WHERE tm.team_id = ?
-        `, [teamId]);
+        // Получаем текущий счёт команды
+        const team = await query('SELECT id, qualifying_score, name FROM teams WHERE id = ?', [teamId]);
+        if (team.length === 0) {
+            return res.status(404).json({ success: false, message: 'Команда не найдена' });
+        }
         
+        const teamScore = team[0].qualifying_score || 0;
+        console.log(`📊 Команда "${team[0].name}" набрала ${teamScore} баллов`);
+        
+        // Получаем все команды с результатами
         const allTeams = await query(`
             SELECT id, qualifying_score 
             FROM teams 
@@ -207,24 +192,103 @@ router.post('/complete/:teamId', verifyToken, async (req, res) => {
             ORDER BY qualifying_score DESC
         `);
         
-        const top3Ids = allTeams.slice(0, 3).map(t => t.id);
-        const isFinalist = top3Ids.includes(parseInt(teamId));
+        // Определяем топ-3
+        let isFinalist = false;
+        if (allTeams.length > 0) {
+            const top3Ids = allTeams.slice(0, 3).map(t => t.id);
+            isFinalist = top3Ids.includes(parseInt(teamId));
+            console.log(`🏆 Топ-3 ID: ${top3Ids}, команда ${teamId} в топ-3? ${isFinalist}`);
+        }
         
+        // Если команда набрала максимальные 250 баллов, тоже делаем финалистом
+        if (teamScore === 250) {
+            isFinalist = true;
+            console.log(`🏆 Команда набрала максимум 250 баллов, автоматически финалист!`);
+        }
+        
+        // Обновляем статус финалиста для команды
         await query('UPDATE teams SET is_finalist = ? WHERE id = ?', [isFinalist ? 1 : 0, teamId]);
         
-        if (isFinalist) {
-            for (const member of members) {
-                await query('UPDATE users SET is_finalist = TRUE WHERE id = ?', [member.id]);
-                console.log(`✅ Игрок ${member.full_name} (${member.id}) получил статус финалиста`);
-            }
+        // Получаем и обновляем пользователя (капитана)
+        const user = await query('SELECT id, full_name FROM users WHERE team_id = ?', [teamId]);
+        if (user.length > 0) {
+            await query('UPDATE users SET is_finalist = ? WHERE id = ?', [isFinalist ? 1 : 0, user[0].id]);
+            console.log(`✅ Капитан ${user[0].full_name} получил статус финалиста: ${isFinalist}`);
+        }
+        
+        // Удаляем прогресс квалификации
+        await query('DELETE FROM qualification_progress WHERE team_id = ?', [teamId]);
+        
+        // Проверяем результат
+        const updatedTeam = await query('SELECT is_finalist FROM teams WHERE id = ?', [teamId]);
+        console.log(`✅ После обновления: is_finalist = ${updatedTeam[0]?.is_finalist}`);
+        
+        res.json({ 
+            success: true, 
+            isFinalist,
+            teamId: parseInt(teamId),
+            teamName: team[0].name,
+            teamScore: teamScore,
+            message: isFinalist ? 'Поздравляем! Ваш отдел прошёл в финал!' : 'К сожалению, ваш отдел не прошёл в финал.'
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка завершения квалификации:', error);
+        res.status(500).json({ success: false, message: 'Ошибка завершения квалификации: ' + error.message });
+    }
+});
+// Завершить квалификацию (автоматически при окончании игры)
+router.post('/complete/:teamId', verifyToken, async (req, res) => {
+    try {
+        const { teamId } = req.params;
+        
+        console.log(`🏁 Автоматическое завершение квалификации для команды: ${teamId}`);
+        
+        const team = await query('SELECT id, qualifying_score, name FROM teams WHERE id = ?', [teamId]);
+        if (team.length === 0) {
+            return res.status(404).json({ success: false, message: 'Команда не найдена' });
+        }
+        
+        const teamScore = team[0].qualifying_score || 0;
+        
+        // Получаем все команды с результатами
+        const allTeams = await query(`
+            SELECT id, qualifying_score 
+            FROM teams 
+            WHERE qualifying_score > 0 
+            ORDER BY qualifying_score DESC
+        `);
+        
+        let isFinalist = false;
+        if (allTeams.length > 0) {
+            const top3Ids = allTeams.slice(0, 3).map(t => t.id);
+            isFinalist = top3Ids.includes(parseInt(teamId));
+        }
+        
+        // Автоматически делаем финалистом при 250 баллах
+        if (teamScore === 250) {
+            isFinalist = true;
+        }
+        
+        // Обновляем статус
+        await query('UPDATE teams SET is_finalist = ? WHERE id = ?', [isFinalist ? 1 : 0, teamId]);
+        
+        const user = await query('SELECT id, full_name FROM users WHERE team_id = ?', [teamId]);
+        if (user.length > 0) {
+            await query('UPDATE users SET is_finalist = ? WHERE id = ?', [isFinalist ? 1 : 0, user[0].id]);
         }
         
         await query('DELETE FROM qualification_progress WHERE team_id = ?', [teamId]);
         
-        res.json({ success: true, isFinalist });
+        res.json({ 
+            success: true, 
+            isFinalist,
+            message: isFinalist ? 'Поздравляем! Ваш отдел прошёл в финал!' : 'К сожалению, ваш отдел не прошёл в финал.'
+        });
+        
     } catch (error) {
-        console.error('❌ Ошибка завершения квалификации:', error);
-        res.status(500).json({ success: false, message: 'Ошибка завершения квалификации' });
+        console.error('❌ Ошибка:', error);
+        res.status(500).json({ success: false, message: 'Ошибка' });
     }
 });
 

@@ -122,5 +122,30 @@ const startServer = async () => {
         console.log(`📍 API URL: http://localhost:3001/api`);
     });
 };
-
+const debugRoutes = require('./src/routes/debugRoutes');
+app.use('/api/debug', debugRoutes);
+// Вывод всех зарегистрированных маршрутов для отладки
+console.log('\n📋 ЗАРЕГИСТРИРОВАННЫЕ МАРШРУТЫ:');
+const listRoutes = (stack, basePath = '') => {
+    stack.forEach(layer => {
+        if (layer.route) {
+            const methods = Object.keys(layer.route.methods).join(', ').toUpperCase();
+            console.log(`  ${methods.padEnd(6)} ${basePath}${layer.route.path}`);
+        } else if (layer.name === 'router' && layer.handle.stack) {
+            let path = '';
+            if (layer.regexp) {
+                const pattern = layer.regexp.source
+                    .replace(/\\\//g, '/')
+                    .replace(/\^/g, '')
+                    .replace(/\?/g, '')
+                    .replace(/\(\?:\(\[\^\\\/\]\+\?\)\)/g, ':param')
+                    .replace(/\/$/g, '');
+                path = pattern;
+            }
+            listRoutes(layer.handle.stack, basePath + path);
+        }
+    });
+};
+listRoutes(app._router.stack);
+console.log('');
 startServer();

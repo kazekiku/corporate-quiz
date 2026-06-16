@@ -1,4 +1,3 @@
-// components/Modal.js
 import { useEffect } from 'react';
 
 export default function Modal({ isOpen, onClose, children, title, className }) {
