@@ -1912,3 +1912,332 @@ h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
     width: 100%;
   }
 }
+/* =====================================================
+   РЕЗУЛЬТАТЫ ФИНАЛА — КРАСИВАЯ ТАБЛИЦА
+===================================================== */
+
+/* Анимация появления строк */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Строка с моей командой */
+.rating-row.my-team {
+  background: rgba(59, 130, 246, 0.15) !important;
+  border-left: 4px solid #4b8cff !important;
+}
+
+/* Строка победителя */
+.rating-row.winner {
+  background: rgba(240, 197, 100, 0.1) !important;
+}
+
+/* Бейджи статуса ответа */
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.status-badge.correct {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.status-badge.wrong {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.status-badge.no-answer {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+/* Очки с анимацией */
+.score-points {
+  transition: all 0.3s ease;
+}
+
+.score-points.positive {
+  color: #10b981;
+  animation: scorePop 0.5s ease-out;
+}
+
+.score-points.zero {
+  color: #6b7280;
+}
+
+@keyframes scorePop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Медали */
+.medal {
+  font-size: 24px;
+  display: inline-block;
+}
+
+.medal.gold {
+  color: #f0c564;
+  text-shadow: 0 0 20px rgba(240, 197, 100, 0.5);
+}
+
+.medal.silver {
+  color: #c0c0c0;
+}
+
+.medal.bronze {
+  color: #cd7f32;
+}
+
+/* Карточка вопроса в результатах */
+.question-result-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(240, 197, 100, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.question-result-card .category {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.question-result-card .text {
+  font-size: 20px;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.question-result-card .value {
+  color: #f0c564;
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* Лидер раунда */
+.leader-card {
+  background: rgba(240, 197, 100, 0.1);
+  border: 2px solid rgba(240, 197, 100, 0.3);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.leader-card.my-team {
+  background: rgba(240, 197, 100, 0.2);
+  border-color: #f0c564;
+}
+
+.leader-card .icon {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+
+.leader-card .title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.leader-card .points {
+  color: #f0c564;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Прогресс-бар в результатах */
+.result-progress {
+  margin: 20px 0;
+}
+
+.result-progress .bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.result-progress .bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f0c564, #ffbe55);
+  border-radius: 3px;
+  transition: width 1s ease;
+}
+/* =====================================================
+   АНИМАЦИЯ ПОЯВЛЕНИЯ СТРОК РЕЗУЛЬТАТОВ
+===================================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =====================================================
+   СТИЛИ ДЛЯ ТАБЛИЦЫ РЕЗУЛЬТАТОВ
+===================================================== */
+.rating-table {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.rating-table-head {
+  display: grid;
+  padding: 12px 16px;
+  background: rgba(240, 197, 100, 0.1);
+  border-bottom: 2px solid rgba(240, 197, 100, 0.3);
+  font-weight: 600;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.rating-row {
+  display: grid;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+  align-items: center;
+}
+
+.rating-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Статус-бейдж */
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.status-badge.correct {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.status-badge.wrong {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.status-badge.no-answer {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+/* Очки */
+.score-points {
+  transition: all 0.3s ease;
+}
+
+.score-points.positive {
+  color: #10b981;
+  animation: scorePop 0.5s ease-out;
+}
+
+.score-points.zero {
+  color: #6b7280;
+}
+
+@keyframes scorePop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Медали */
+.medal {
+  font-size: 24px;
+  display: inline-block;
+}
+
+.medal.gold {
+  color: #f0c564;
+  text-shadow: 0 0 20px rgba(240, 197, 100, 0.5);
+}
+
+.medal.silver {
+  color: #c0c0c0;
+}
+
+.medal.bronze {
+  color: #cd7f32;
+}
+
+/* Карточка информации о ходе */
+.turn-info-card {
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.turn-info-card.has-winner {
+  background: rgba(16, 185, 129, 0.1);
+  border: 2px solid rgba(16, 185, 129, 0.3);
+}
+
+.turn-info-card.no-winner {
+  background: rgba(245, 158, 11, 0.1);
+  border: 2px solid rgba(245, 158, 11, 0.3);
+}
+
+.turn-info-card .icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.turn-info-card .title {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.turn-info-card .subtitle {
+  color: #f0c564;
+  font-size: 14px;
+  margin-top: 4px;
+}

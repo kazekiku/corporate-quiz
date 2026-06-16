@@ -133,7 +133,9 @@ export const setFinalTeamReady = async () => {
 
 // Получение игрового поля
 export const getFinalBoard = async () => {
+  console.log('🎮 Получение игрового поля финала');
   const response = await api.get('/final/board');
+  console.log('🎮 Ответ сервера:', response.data);
   return response;
 };
 
