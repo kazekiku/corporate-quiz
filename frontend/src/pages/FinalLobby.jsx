@@ -7,6 +7,18 @@ import DebugPanel from '../components/DebugPanel';
 import NeonBorder from '../components/NeonBorder';
 import LedLight from '../components/LedLight';
 
+// SVG иконка для логотипа
+const TrophyIcon = () => (
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#f0c564" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+  </svg>
+);
+
 export default function FinalLobby() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -162,7 +174,9 @@ export default function FinalLobby() {
             <div className="rating-icon" style={{ 
               background: 'linear-gradient(135deg, #f0c564, #d4a017)',
               boxShadow: '0 0 20px rgba(240,197,100,0.5)'
-            }}>🏆</div>
+            }}>
+              <TrophyIcon />
+            </div>
             <div>
               <h1 style={{ fontSize: '28px', marginBottom: '4px' }}>Финал</h1>
               <p style={{ margin: 0 }}>Ожидание финалистов</p>
@@ -230,7 +244,7 @@ export default function FinalLobby() {
 
         {teams.length === 0 && (
           <div className="card text-center" style={{ padding: '40px', marginBottom: '24px', background: 'rgba(0,0,0,0.2)' }}>
-            <p style={{ color: '#f0c564', fontSize: '18px' }}>🏆 Вы первый финалист!</p>
+            <p style={{ color: '#f0c564', fontSize: '18px' }}>Вы первый финалист!</p>
             <p className="text-muted">Ожидаем подключения остальных финалистов...</p>
           </div>
         )}
@@ -271,7 +285,7 @@ export default function FinalLobby() {
 
         {teams.length === 3 && allReady && (
           <div className="text-center" style={{ padding: '16px', background: 'rgba(16,185,129,0.2)', borderRadius: '16px' }}>
-            <span style={{ color: '#10b981', fontSize: '16px', fontWeight: 'bold' }}>🎮 Все отделы готовы! Финал начнётся автоматически...</span>
+            <span style={{ color: '#10b981', fontSize: '16px', fontWeight: 'bold' }}>Все отделы готовы! Финал начнётся автоматически...</span>
           </div>
         )}
 

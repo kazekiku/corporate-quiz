@@ -5,6 +5,18 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import DebugPanel from '../components/DebugPanel';
 
+// SVG иконка для лобби
+const BuildingIcon = () => (
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+    <line x1="9" y1="22" x2="9" y2="18" />
+    <line x1="15" y1="22" x2="15" y2="18" />
+    <line x1="8" y1="6" x2="16" y2="6" />
+    <line x1="8" y1="10" x2="16" y2="10" />
+    <line x1="8" y1="14" x2="16" y2="14" />
+  </svg>
+);
+
 export default function Lobby() {
   const { teamId } = useParams();
   const navigate = useNavigate();
@@ -87,7 +99,9 @@ export default function Lobby() {
     <div className="lobby-page">
       <div className="lobby-container">
         <div className="lobby-header">
-          <div className="lobby-logo">🏢</div>
+          <div className="lobby-logo">
+            <BuildingIcon />
+          </div>
           <div>
             <h1>{team.name}</h1>
             <p className="lobby-subtitle">Отборочный тур</p>
@@ -125,7 +139,7 @@ export default function Lobby() {
             </div>
             
             <div className="rule-item">
-              <div className="rule-icon">⏱️</div>
+              <div className="rule-icon">⏱</div>
               <div className="rule-content">
                 <div className="rule-title">30 секунд</div>
                 <div className="rule-desc">На один вопрос</div>
@@ -147,7 +161,7 @@ export default function Lobby() {
           disabled={countdown !== null}
           className={`lobby-start-btn ${countdown !== null ? 'disabled' : 'ready'}`}
         >
-          {countdown !== null ? 'ИГРА НАЧИНАЕТСЯ...' : '🚀 НАЧАТЬ ОТБОР'}
+          {countdown !== null ? 'ИГРА НАЧИНАЕТСЯ...' : 'НАЧАТЬ ОТБОР'}
         </button>
 
         <button onClick={() => navigate('/main')} className="lobby-back-btn">

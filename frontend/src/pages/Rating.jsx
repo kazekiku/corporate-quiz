@@ -1,8 +1,14 @@
-// pages/Rating.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getRating } from '../api/client';
 import NeonBorder from '../components/NeonBorder';
+
+// SVG иконка для рейтинга
+const RatingIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+  </svg>
+);
 
 export default function Rating() {
   const navigate = useNavigate();
@@ -65,7 +71,9 @@ export default function Rating() {
     <div className="rating-page">
       <div className="rating-card fade-in">
         <div className="rating-header slide-in-left">
-          <div className="rating-icon">📊</div>
+          <div className="rating-icon">
+            <RatingIcon />
+          </div>
           <div>
             <h1>Рейтинг отделов</h1>
             <p>Только лучшие проходят в финал</p>
@@ -74,7 +82,7 @@ export default function Rating() {
 
         {teams.length === 0 ? (
           <div className="card text-center" style={{ padding: '60px 20px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
+            <div style={{ fontSize: '40px', marginBottom: '16px', color: '#f0c564' }}>🏆</div>
             <h3>Пока нет завершивших оценку отделов</h3>
             <p className="text-muted">Станьте первыми, кто пройдёт отборочный тур!</p>
             <button onClick={() => navigate('/main')} className="btn btn-primary mt-4">На главную</button>
@@ -118,14 +126,14 @@ export default function Rating() {
 
             <div className="text-center" style={{ marginTop: '24px' }}>
               <NeonBorder color="yellow" style={{ display: 'inline-block', padding: '8px 24px' }}>
-                🏆 Топ-3 отдела проходят в финал!
+                Топ-3 отдела проходят в финал!
               </NeonBorder>
             </div>
           </>
         )}
 
         <button onClick={() => navigate('/main')} className="rating-home-btn pulse-gentle">
-          🏠 На главную
+          На главную
         </button>
       </div>
     </div>

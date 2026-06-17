@@ -2,12 +2,27 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
-import { 
-  getTeam, 
-  getTeamFinalistStatus
-} from '../api/client';
+import { getTeam, getTeamFinalistStatus } from '../api/client';
 import Modal from '../components/Modal';
 import DebugPanel from '../components/DebugPanel';
+
+// SVG иконки
+const TrophyIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#f0c564" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+  </svg>
+);
+
+const StarIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="#f0c564" stroke="#f0c564" strokeWidth="1">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
 
 export default function Main() {
   const navigate = useNavigate();
@@ -122,7 +137,7 @@ export default function Main() {
       <div className="auth-layout">
         <div className="container-narrow">
           <div className="card text-center">
-            <p>❌ Отдел не найден</p>
+            <p>Отдел не найден</p>
             <button onClick={() => navigate('/')} className="btn btn-primary mt-4">
               На регистрацию
             </button>
@@ -133,7 +148,7 @@ export default function Main() {
   }
 
   const statusText = (isFinalist || team.is_finalist) 
-    ? 'ФИНАЛИСТЫ 🏆' 
+    ? 'ФИНАЛИСТЫ' 
     : (team.qualifying_score > 0 
       ? 'ПРОШЛИ ОТБОР' 
       : 'ГОТОВЫ К ОТБОРУ');
@@ -148,7 +163,9 @@ export default function Main() {
     <div className="battle-page">
       <div className="battle-card">
         <div className="battle-header">
-          <div className="battle-trophy">🏢</div>
+          <div className="battle-trophy">
+            <TrophyIcon />
+          </div>
           <h1>КОРПОРАТИВНЫЕ БОИ</h1>
           <p>Оценка квалификации сотрудников</p>
           <div className="battle-badge">IT-квиз | Проверь свои знания</div>
@@ -157,36 +174,33 @@ export default function Main() {
         <div className="battle-divider" />
 
         <div className="battle-content">
-          <button onClick={handleStartGame} className="battle-start-btn">
-            🚀 ВЫБРАТЬ ТУР
-          </button>
-
-          <div className="battle-team-card">
-            <div className="battle-status-pill" style={{ color: statusColor }}>
-              {statusText}
-            </div>
-            <h2>{team.name}</h2>
-            <p>Ваш отдел</p>
-
-            <div className="battle-stats">
-              <div className="battle-stat">
-                <strong>{team.qualifying_score || 0}</strong>
-                <span>баллов</span>
-              </div>
-              <div className="battle-stat">
-                <strong>{team.members?.length || 1}</strong>
-                <span>сотрудников</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="battle-actions">
-            <button onClick={() => navigate('/rating')} className="battle-secondary-btn">
-              📊 РЕЙТИНГ
+          <div className="battle-main">
+            <button onClick={handleStartGame} className="battle-start-btn">
+              ВОЙТИ В ИГРУ <span style={{ fontSize: '20px' }}>→</span> К ВЫБОРУ ТУРОВ
             </button>
-            <button onClick={logout} className="battle-secondary-btn">
-              🚪 ВЫЙТИ
-            </button>
+
+            <div className="team-status-card">
+              <div className="battle-status-pill" style={{ color: statusColor }}>
+                {statusText}
+                {isFinalist && <StarIcon />}
+              </div>
+              <div className="team-name">{team.name}</div>
+            </div>
+
+            <div className="battle-hint">
+              Нажми «Войти», чтобы попасть на арену. Первый тур уже ждёт!
+              <br />
+              После победы в первом туре откроется финал.
+            </div>
+
+            <div className="battle-actions">
+              <button onClick={() => navigate('/rating')} className="battle-secondary-btn">
+                Рейтинг
+              </button>
+              <button onClick={logout} className="battle-secondary-btn">
+                Выйти
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -211,7 +225,7 @@ export default function Main() {
               <div className="tour-badge available">ДОСТУПЕН</div>
             </div>
             <div className="tour-rules">
-              <h4>📜 ПРАВИЛА</h4>
+              <h4>ПРАВИЛА</h4>
               <ul>
                 <li>25 вопросов</li>
                 <li>10 баллов за ответ</li>
@@ -232,7 +246,7 @@ export default function Main() {
               </div>
             </div>
             <div className="tour-rules">
-              <h4>📜 ПРАВИЛА</h4>
+              <h4>ПРАВИЛА</h4>
               <ul>
                 <li>25 вопросов (5×5)</li>
                 <li>100-500 баллов</li>
@@ -247,7 +261,7 @@ export default function Main() {
 
         <div style={{ padding: '20px 28px' }}>
           <button onClick={handleCreateGame} className="register-btn" style={{ width: '100%' }}>
-            {selectedMode === 'final' ? '🏆 НАЧАТЬ ФИНАЛ' : '📚 НАЧАТЬ ОТБОР'}
+            {selectedMode === 'final' ? 'НАЧАТЬ ФИНАЛ' : 'НАЧАТЬ ОТБОР'}
           </button>
         </div>
       </Modal>

@@ -1,14 +1,39 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useToast } from '../hooks/useToast';
 import { getFinalResults } from '../api/client';
+
+// SVG иконки
+const CrownIcon = () => (
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#f0c564" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 4L5 12L12 3L19 12L22 4L19 20H5L2 4Z" />
+    <path d="M5 20H19" strokeWidth="1.5" />
+  </svg>
+);
+
+const MedalIcon = ({ type }) => {
+  const colors = {
+    gold: { fill: '#f0c564', bg: 'rgba(240,197,100,0.15)' },
+    silver: { fill: '#c0c0c0', bg: 'rgba(192,192,192,0.15)' },
+    bronze: { fill: '#cd7f32', bg: 'rgba(205,127,50,0.15)' }
+  };
+  const style = colors[type] || colors.gold;
+  
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={style.fill} strokeWidth="2">
+      <circle cx="12" cy="12" r="10" fill={style.bg} />
+      <text x="12" y="16" textAnchor="middle" fill={style.fill} fontSize="12" fontWeight="bold">
+        {type === 'gold' ? '1' : type === 'silver' ? '2' : type === 'bronze' ? '3' : ''}
+      </text>
+    </svg>
+  );
+};
 
 export default function FinalResults() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { showToast } = useToast();
+
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,37 +42,32 @@ export default function FinalResults() {
     const loadResults = async () => {
       try {
         if (location.state?.results) {
-          console.log('📊 Результаты из location.state:', location.state.results);
           setResults(location.state.results);
           setLoading(false);
           return;
         }
 
         const savedResults = localStorage.getItem('final_results');
+
         if (savedResults) {
-          try {
-            const parsed = JSON.parse(savedResults);
-            console.log('📊 Результаты из localStorage:', parsed);
-            setResults(parsed);
-            setLoading(false);
-            return;
-          } catch (e) {
-            console.error('❌ Ошибка парсинга localStorage:', e);
-          }
+          setResults(JSON.parse(savedResults));
+          setLoading(false);
+          return;
         }
 
-        console.log('📊 Загружаем результаты с сервера...');
         const response = await getFinalResults();
-        console.log('📊 Ответ сервера:', response.data);
-        
-        if (response.data?.data && response.data.data.length > 0) {
+
+        if (response.data?.data?.length) {
           setResults(response.data.data);
-          localStorage.setItem('final_results', JSON.stringify(response.data.data));
+          localStorage.setItem(
+            'final_results',
+            JSON.stringify(response.data.data)
+          );
         } else {
           setError('Нет данных о результатах');
         }
       } catch (err) {
-        console.error('❌ Ошибка загрузки результатов:', err);
+        console.error(err);
         setError('Не удалось загрузить результаты');
       } finally {
         setLoading(false);
@@ -59,16 +79,9 @@ export default function FinalResults() {
 
   if (loading) {
     return (
-      <div className="auth-layout">
-        <div className="container-narrow">
-          <div className="card text-center">
-            <div className="loading-spinner">
-              <div className="loading-dot" />
-              <div className="loading-dot" />
-              <div className="loading-dot" />
-            </div>
-            <p>Загрузка результатов...</p>
-          </div>
+      <div className="rating-page">
+        <div className="rating-card text-center">
+          <h2>Загрузка результатов...</h2>
         </div>
       </div>
     );
@@ -76,165 +89,182 @@ export default function FinalResults() {
 
   if (error) {
     return (
-      <div className="auth-layout">
-        <div className="container-narrow">
-          <div className="card text-center">
-            <p className="text-danger">{error}</p>
-            <button onClick={() => navigate('/main')} className="btn btn-primary mt-4">На главную</button>
-          </div>
+      <div className="rating-page">
+        <div className="rating-card text-center">
+          <p>{error}</p>
+          <button className="btn btn-primary mt-4" onClick={() => navigate('/main')}>
+            На главную
+          </button>
         </div>
       </div>
     );
   }
 
-  let teamsArray = [];
-  
+  let teams = [];
+
   if (Array.isArray(results)) {
-    teamsArray = results;
-  } else if (results?.teams && Array.isArray(results.teams)) {
-    teamsArray = results.teams;
-  } else if (results?.data && Array.isArray(results.data)) {
-    teamsArray = results.data;
+    teams = results;
+  } else if (results?.teams) {
+    teams = results.teams;
+  } else if (results?.data) {
+    teams = results.data;
   }
-  
-  console.log('📊 teamsArray:', teamsArray);
 
-  if (teamsArray.length === 0) {
+  if (!teams.length) {
     return (
-      <div className="auth-layout">
-        <div className="container-narrow">
-          <div className="card text-center">
-            <p>Нет данных для отображения</p>
-            <button onClick={() => navigate('/main')} className="btn btn-primary mt-4">На главную</button>
-          </div>
+      <div className="rating-page">
+        <div className="rating-card text-center">
+          <h2>Нет данных для отображения</h2>
         </div>
       </div>
     );
   }
 
-  const sortedTeams = [...teamsArray].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const sortedTeams = [...teams].sort(
+    (a, b) => (b.score || 0) - (a.score || 0)
+  );
+
   const winner = sortedTeams[0];
-  const myTeam = sortedTeams.find(t => t.id === user?.teamId) || sortedTeams.find(t => t.team_id === user?.teamId);
-  const isWinner = myTeam?.id === winner?.id || myTeam?.team_id === winner?.id;
-  
-  console.log('🏆 Победитель:', winner);
-  console.log('👤 Моя команда:', myTeam);
-  console.log('🏆 isWinner:', isWinner);
+
+  const myTeam =
+    sortedTeams.find(
+      t =>
+        t.id === user?.teamId ||
+        t.team_id === user?.teamId
+    ) || null;
+
+  const getMedal = (index) => {
+    if (index === 0) return <MedalIcon type="gold" />;
+    if (index === 1) return <MedalIcon type="silver" />;
+    if (index === 2) return <MedalIcon type="bronze" />;
+    return <span style={{ fontSize: '18px', color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>#{index + 1}</span>;
+  };
 
   return (
-    <div className="rating-page">
-      <div className="rating-card" style={{ maxWidth: '700px', textAlign: 'center' }}>
-        
-        <div className="rating-header" style={{ justifyContent: 'center' }}>
-          <div className="rating-icon" style={{ 
-            background: isWinner ? 'linear-gradient(135deg, #f0c564, #d4a017)' : 'linear-gradient(135deg, #4b8cff, #2456d8)',
-            boxShadow: isWinner ? '0 0 30px rgba(240,197,100,0.5)' : '0 0 20px rgba(59,130,246,0.3)'
+    <div className="final-page">
+      <div className="final-card" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <h1 style={{ color: '#f0c564', fontSize: '42px', fontWeight: 800 }}>ИТОГИ ФИНАЛА</h1>
+          <p style={{ color: 'rgba(255,255,255,.65)', fontSize: '18px' }}>
+            Итоги турнира — битва умов завершена!
+          </p>
+          <div style={{
+            marginTop: '12px',
+            display: 'inline-block',
+            padding: '8px 20px',
+            borderRadius: '999px',
+            background: 'rgba(75,140,255,.15)',
+            color: '#f0c564'
           }}>
-            {isWinner ? '🏆' : '📋'}
-          </div>
-          <div>
-            <h1 style={{ color: isWinner ? '#f0c564' : 'white' }}>ФИНАЛ</h1>
-            <p style={{ color: isWinner ? '#f0c564' : 'rgba(255,255,255,0.6)' }}>
-              {isWinner ? '🏆 ПОБЕДА!' : 'Результаты игры'}
-            </p>
+            Абсолютный чемпион определён
           </div>
         </div>
 
-        <div className="card" style={{ 
-          marginBottom: '24px',
-          background: isWinner ? 'rgba(240,197,100,0.15)' : 'rgba(239,68,68,0.1)',
-          border: isWinner ? '2px solid rgba(240,197,100,0.4)' : '2px solid rgba(239,68,68,0.3)',
-          padding: '24px'
+        <div style={{
+          padding: '60px 24px',
+          marginBottom: '40px',
+          textAlign: 'center',
+          borderRadius: '36px',
+          border: '2px solid rgba(240,197,100,.3)',
+          background: 'linear-gradient(180deg, rgba(20,35,65,.95), rgba(10,20,50,.95))',
+          boxShadow: '0 0 50px rgba(240,197,100,.12)'
         }}>
-          {isWinner ? (
-            <>
-              <div style={{ fontSize: '64px', marginBottom: '8px' }}>🏆🏆🏆</div>
-              <h2 style={{ color: '#f0c564', fontSize: '28px', marginBottom: '8px' }}>ПОБЕДА!</h2>
-              <p className="text-muted">Ваша команда показала лучший результат в финале!</p>
-              <p className="text-muted mt-2" style={{ color: '#f0c564', fontWeight: 'bold' }}>
-                {winner.score} баллов
-              </p>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: '48px', marginBottom: '8px' }}>💪</div>
-              <h2 style={{ color: '#ef4444', fontSize: '24px', marginBottom: '8px' }}>ДОСТОЙНОЕ ВЫСТУПЛЕНИЕ</h2>
-              <p className="text-muted">К сожалению, ваша команда не смогла победить в финале.</p>
-              <p className="text-muted mt-2">В следующий раз обязательно получится!</p>
-            </>
-          )}
+          <div style={{ marginBottom: '18px' }}>
+            <CrownIcon />
+          </div>
+          <div style={{ color: '#f0c564', fontSize: '48px', fontWeight: 800 }}>{winner.name}</div>
+          <div style={{
+            display: 'inline-block',
+            marginTop: '18px',
+            padding: '10px 26px',
+            borderRadius: '999px',
+            background: 'rgba(75,140,255,.15)',
+            fontSize: '24px',
+            fontWeight: 700,
+            color: '#f0c564'
+          }}>
+            {winner.score || 0} баллов
+          </div>
+          <p style={{ marginTop: '20px', color: 'rgba(255,255,255,.55)', fontStyle: 'italic' }}>
+            «Интеллект и команда — вот формула победы!»
+          </p>
         </div>
 
-        <h3 style={{ marginBottom: '16px', textAlign: 'left' }}>📊 ИТОГОВАЯ ТАБЛИЦА</h3>
-        <div className="rating-table" style={{ marginBottom: '24px' }}>
-          <div className="rating-table-head" style={{
-            gridTemplateColumns: '60px 1fr 100px',
-            padding: '12px 16px',
-            background: 'rgba(240,197,100,0.1)',
-            borderRadius: '12px 12px 0 0',
-            borderBottom: '2px solid rgba(240,197,100,0.3)'
+        <div style={{
+          borderRadius: '24px',
+          overflow: 'hidden',
+          background: 'rgba(255,255,255,.03)'
+        }}>
+          <div style={{
+            padding: '20px 24px',
+            fontSize: '28px',
+            fontWeight: 700,
+            color: '#fff',
+            borderBottom: '2px solid rgba(75,140,255,.3)'
           }}>
-            <span style={{ textAlign: 'center' }}>МЕСТО</span>
-            <span>КОМАНДА</span>
-            <span style={{ textAlign: 'right' }}>БАЛЛЫ</span>
+            ФИНАЛИСТЫ
           </div>
-          
+
           {sortedTeams.map((team, index) => {
-            const isMyTeam = team.id === myTeam?.id || team.team_id === myTeam?.id;
+            const isMyTeam = team.id === myTeam?.id || team.team_id === myTeam?.team_id;
             const isWinnerTeam = index === 0;
-            
+
             return (
-              <div 
-                key={team.id || team.team_id || index} 
-                className="rating-row" 
+              <div
+                key={team.id || team.team_id || index}
                 style={{
-                  gridTemplateColumns: '60px 1fr 100px',
-                  padding: '14px 16px',
-                  background: isMyTeam ? 'rgba(59,130,246,0.15)' : 'transparent',
-                  borderLeft: isMyTeam ? '4px solid #4b8cff' : '4px solid transparent',
-                  borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  transition: 'all 0.3s ease'
+                  display: 'grid',
+                  gridTemplateColumns: '80px 1fr 120px',
+                  alignItems: 'center',
+                  minHeight: '80px',
+                  padding: '0 24px',
+                  borderBottom: '1px solid rgba(255,255,255,.05)',
+                  background: isMyTeam ? 'rgba(75,140,255,.12)' : 'transparent',
+                  transition: 'background .2s'
                 }}
               >
-                <div className="place" style={{ 
-                  textAlign: 'center',
-                  fontSize: '24px',
-                  color: index === 0 ? '#f0c564' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : 'rgba(255,255,255,0.6)'
-                }}>
-                  {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {getMedal(index)}
                 </div>
-                <div className="team-name" style={{ 
-                  color: isWinnerTeam ? '#f0c564' : 'white',
-                  fontWeight: isWinnerTeam ? 'bold' : 'normal',
+
+                <div style={{
+                  fontSize: '20px',
+                  fontWeight: isWinnerTeam ? 700 : 600,
+                  color: isWinnerTeam ? '#f0c564' : '#fff',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
+                  gap: '10px'
                 }}>
                   {team.name}
                   {isMyTeam && (
-                    <span style={{ 
-                      fontSize: '10px', 
-                      background: 'rgba(59,130,246,0.2)',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '4px 10px',
+                      borderRadius: '999px',
+                      background: 'rgba(75,140,255,.2)',
                       color: '#4b8cff'
-                    }}>ВЫ</span>
+                    }}>
+                      ВАША КОМАНДА
+                    </span>
                   )}
                   {isWinnerTeam && (
-                    <span style={{ 
-                      fontSize: '10px', 
-                      background: 'rgba(240,197,100,0.2)',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '4px 10px',
+                      borderRadius: '999px',
+                      background: 'rgba(240,197,100,.2)',
                       color: '#f0c564'
-                    }}>🏆 ПОБЕДИТЕЛЬ</span>
+                    }}>
+                      ПОБЕДИТЕЛЬ
+                    </span>
                   )}
                 </div>
-                <div className="score" style={{ 
+
+                <div style={{
                   textAlign: 'right',
-                  fontSize: '22px',
-                  fontWeight: 'bold',
-                  color: isWinnerTeam ? '#f0c564' : 'white'
+                  fontSize: '24px',
+                  fontWeight: 700,
+                  color: '#f0c564'
                 }}>
                   {team.score || 0}
                 </div>
@@ -243,49 +273,16 @@ export default function FinalResults() {
           })}
         </div>
 
-        {myTeam && (
-          <div className="card" style={{ marginBottom: '24px', textAlign: 'left' }}>
-            <h4 style={{ marginBottom: '12px', color: '#4b8cff' }}>📈 СТАТИСТИКА ВАШЕЙ КОМАНДЫ</h4>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span className="text-muted">Итоговый счёт:</span>
-              <span className="text-white font-bold">{myTeam.score || 0} баллов</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span className="text-muted">Место:</span>
-              <span className="text-white font-bold">
-                #{sortedTeams.findIndex(t => t.id === myTeam.id || t.team_id === myTeam.id) + 1}
-              </span>
-            </div>
-            {!isWinner && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span className="text-muted">Отставание от победителя:</span>
-                <span className="text-white font-bold">
-                  {(winner.score || 0) - (myTeam.score || 0)} баллов
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
-            onClick={() => {
-              localStorage.removeItem('final_results');
-              navigate('/main');
-            }} 
-            className="btn btn-primary" 
-            style={{ flex: 1 }}
-          >
-            🏠 На главную
-          </button>
-          <button 
-            onClick={() => navigate('/rating')} 
-            className="btn btn-outline" 
-            style={{ flex: 1 }}
-          >
-            📊 Рейтинг
-          </button>
-        </div>
+        <button
+          className="rating-home-btn"
+          style={{ marginTop: '32px' }}
+          onClick={() => {
+            localStorage.removeItem('final_results');
+            navigate('/main');
+          }}
+        >
+          ВЕРНУТЬСЯ НА ГЛАВНУЮ
+        </button>
       </div>
     </div>
   );

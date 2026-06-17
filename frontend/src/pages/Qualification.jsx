@@ -6,6 +6,14 @@ import { useToast } from '../hooks/useToast';
 import DebugPanel from '../components/DebugPanel';
 import NeonBorder from '../components/NeonBorder';
 
+// SVG иконка для логотипа
+const BookIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </svg>
+);
+
 export default function Qualification() {
   const { teamId } = useParams();
   const navigate = useNavigate();
@@ -276,7 +284,9 @@ export default function Qualification() {
       <div className="quiz-container">
         <div className="quiz-card scale-in">
           <div className="quiz-header slide-in-left">
-            <div className="quiz-logo">📚</div>
+            <div className="quiz-logo">
+              <BookIcon />
+            </div>
             <div>
               <h1>{gameConfig.name}</h1>
               <p>{gameConfig.pointsPerQuestion} баллов за вопрос</p>

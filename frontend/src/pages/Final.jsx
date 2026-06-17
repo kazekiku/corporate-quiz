@@ -6,6 +6,18 @@ import { useToast } from '../hooks/useToast';
 import LedLight from '../components/LedLight';
 import DebugPanel from '../components/DebugPanel';
 
+// SVG иконка для логотипа
+const TrophyIcon = () => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f0c564" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+  </svg>
+);
+
 export default function Final() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -320,7 +332,7 @@ export default function Final() {
         <div className="final-container">
           <div className="final-card fade-in text-center">
             <div className="final-header">
-              <div className="final-logo">🏆</div>
+              <div className="final-logo"><TrophyIcon /></div>
               <h1>Своя игра</h1>
               <p>Финал</p>
             </div>
@@ -356,10 +368,10 @@ export default function Final() {
           <div className="final-card fade-in" style={{ maxWidth: '900px', margin: '0 auto' }}>
             
             <div className="final-header" style={{ textAlign: 'center', borderBottom: '2px solid rgba(240,197,100,0.3)' }}>
-              <div style={{ fontSize: '48px', marginBottom: '8px' }}>📊</div>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📊</div>
               <h1 style={{ color: '#f0c564', fontSize: '32px' }}>Результаты раунда</h1>
               <p style={{ color: 'rgba(255,255,255,0.6)' }}>
-                {results.question?.category} • 💰 {results.question?.value} баллов
+                {results.question?.category} • {results.question?.value} баллов
               </p>
             </div>
 
@@ -388,7 +400,7 @@ export default function Final() {
                 <span>КОМАНДА</span>
                 <span>ОТВЕТ</span>
                 <span style={{ textAlign: 'center' }}>⏱</span>
-                <span style={{ textAlign: 'right' }}>🏆 БАЛЛЫ</span>
+                <span style={{ textAlign: 'right' }}>БАЛЛЫ</span>
               </div>
               
               {results.teams?.map((team, index) => {
@@ -458,7 +470,7 @@ export default function Final() {
                           padding: '2px 8px',
                           borderRadius: '12px',
                           color: '#10b981'
-                        }}>▶️ ПРОДОЛЖАЕТ</span>
+                        }}>▶ ПРОДОЛЖАЕТ</span>
                       )}
                     </div>
                     
@@ -588,7 +600,7 @@ export default function Final() {
       <div className="final-container">
         <div className="final-card fade-in">
           <div className="final-header">
-            <div className="final-logo">🎮</div>
+            <div className="final-logo"><TrophyIcon /></div>
             <h1>Своя игра</h1>
             <p>Финал</p>
           </div>
@@ -612,7 +624,7 @@ export default function Final() {
                 >
                   <span>{team.name}</span>
                   <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#f0c564' }}>{team.score || 0}</span>
-                  {isMyTeam && <span style={{ fontSize: '12px', color: '#4b8cff' }}>⭐</span>}
+                  {isMyTeam && <span style={{ fontSize: '12px', color: '#4b8cff' }}>★</span>}
                   {board?.currentTurnTeamId === team.id && <LedLight color="yellow" blinking={true} />}
                 </div>
               );
@@ -659,7 +671,7 @@ export default function Final() {
               </div>
               <div className={`final-turn-message ${isMyTurn ? 'your-turn' : 'other-turn'}`}>
                 {isMyTurn ? (
-                  '🎯 ВАШ ХОД! Выберите вопрос'
+                  'ВАШ ХОД! Выберите вопрос'
                 ) : (
                   `⏳ Сейчас ход команды "${teams.find(t => t.id === board?.currentTurnTeamId)?.name || '...'}"`
                 )}
@@ -671,7 +683,7 @@ export default function Final() {
             <div className="final-question-card">
               <div className="final-question-header">
                 <span className="final-question-category">{currentQuestion.category}</span>
-                <span className="final-question-value">💰 {currentQuestion.value} баллов</span>
+                <span className="final-question-value">{currentQuestion.value} баллов</span>
                 <span className={`final-question-timer ${timeLeft < 10 ? 'danger' : ''}`}>
                   ⏱ {Math.floor(timeLeft)} сек
                 </span>
@@ -696,7 +708,7 @@ export default function Final() {
                   className="final-submit-btn"
                   disabled={hasAnswered}
                 >
-                  {hasAnswered ? '✓ ОТВЕТ ОТПРАВЛЕН' : '📨 ОТВЕТИТЬ'}
+                  {hasAnswered ? '✓ ОТВЕТ ОТПРАВЛЕН' : 'ОТВЕТИТЬ'}
                 </button>
               </div>
               

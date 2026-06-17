@@ -4,6 +4,18 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { completeQualification, getTeamFinalistStatus, updateTeamScore, getTeam } from '../api/client';
 
+// SVG иконка для трофея
+const TrophyIcon = () => (
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+  </svg>
+);
+
 export default function QualificationResults() {
   const { teamId } = useParams();
   const navigate = useNavigate();
@@ -139,7 +151,9 @@ export default function QualificationResults() {
     <div className="rating-page">
       <div className="rating-card fade-in">
         <div className="rating-header slide-in-left">
-          <div className="rating-icon">📊</div>
+          <div className="rating-icon" style={{ color: isFinalistTeam ? '#10b981' : '#4b8cff' }}>
+            <TrophyIcon />
+          </div>
           <div>
             <h1>Результаты отбора</h1>
             <p>Ваш отдел завершил отборочный тур</p>
@@ -153,21 +167,21 @@ export default function QualificationResults() {
         }}>
           {isFinalistTeam ? (
             <>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🏆🏆🏆</div>
+              <div style={{ fontSize: '40px', marginBottom: '12px', color: '#10b981' }}>🏆</div>
               <h2 style={{ color: '#10b981', marginBottom: '8px' }}>ПОЗДРАВЛЯЕМ!</h2>
               <p className="text-muted">Ваш отдел прошёл в финал!</p>
               <p className="text-muted mt-2">Место: <strong>{myPosition}</strong> из всех участников</p>
             </>
           ) : isInTop3 ? (
             <>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🏆</div>
+              <div style={{ fontSize: '40px', marginBottom: '12px', color: '#f0c564' }}>🏆</div>
               <h2 style={{ color: '#f0c564', marginBottom: '8px' }}>ВЫ В ТОП-3!</h2>
               <p className="text-muted">Ваш отдел прошёл в финал!</p>
               <p className="text-muted mt-2">Место: <strong>{myPosition}</strong> из всех участников</p>
             </>
           ) : (
             <>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>💔</div>
+              <div style={{ fontSize: '40px', marginBottom: '12px', color: '#ef4444' }}>💔</div>
               <h2 style={{ color: '#ef4444', marginBottom: '8px' }}>К сожалению...</h2>
               <p className="text-muted">Ваш отдел не прошёл в финал.</p>
               <p className="text-muted mt-2">Место: <strong>{myPosition}</strong> из всех участников</p>
@@ -176,7 +190,7 @@ export default function QualificationResults() {
         </div>
 
         <div className="card" style={{ marginBottom: '24px' }}>
-          <h3 style={{ marginBottom: '16px' }}>📈 Статистика отдела</h3>
+          <h3 style={{ marginBottom: '16px' }}>Статистика отдела</h3>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span className="text-muted">Набрано баллов:</span>
             <span className="text-white font-bold">{results?.teamScore || 0}</span>
@@ -210,10 +224,10 @@ export default function QualificationResults() {
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
             <button onClick={handleGoToMain} className="btn btn-primary" style={{ flex: 1 }}>
-              🏠 НА ГЛАВНУЮ
+              НА ГЛАВНУЮ
             </button>
             <button onClick={() => navigate('/rating')} className="btn btn-outline" style={{ flex: 1 }}>
-              📊 РЕЙТИНГ
+              РЕЙТИНГ
             </button>
           </div>
         </div>

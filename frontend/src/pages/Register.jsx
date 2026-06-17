@@ -3,6 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { register, getMe } from '../api/client';
 import { useToast } from '../hooks/useToast';
 
+// SVG иконка для регистрации
+const BuildingIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+    <line x1="9" y1="22" x2="9" y2="18" />
+    <line x1="15" y1="22" x2="15" y2="18" />
+    <line x1="8" y1="6" x2="16" y2="6" />
+    <line x1="8" y1="10" x2="16" y2="10" />
+    <line x1="8" y1="14" x2="16" y2="14" />
+  </svg>
+);
+
 export default function Register() {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -69,7 +81,9 @@ export default function Register() {
     <div className="register-page">
       <div className="register-card">
         <div className="register-header">
-          <div className="register-icon">🏢</div>
+          <div className="register-icon">
+            <BuildingIcon />
+          </div>
           <div>
             <h1>Корпоративные бои</h1>
             <p>Создайте свой отдел</p>
@@ -90,7 +104,7 @@ export default function Register() {
           </div>
 
           <button type="submit" disabled={loading} className="register-btn">
-            {loading ? 'Создание...' : '🚀 СОЗДАТЬ ОТДЕЛ'}
+            {loading ? 'Создание...' : 'СОЗДАТЬ ОТДЕЛ'}
           </button>
         </form>
       </div>
