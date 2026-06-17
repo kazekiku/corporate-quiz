@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { completeQualification, getTeamFinalistStatus, updateTeamScore, getTeam } from '../api/client';
 
 export default function QualificationResults() {
@@ -8,6 +9,7 @@ export default function QualificationResults() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setUser } = useAuth();
+  const { showToast } = useToast();
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isFinalist, setIsFinalist] = useState(false);
@@ -17,7 +19,6 @@ export default function QualificationResults() {
   useEffect(() => {
     const loadResults = async () => {
       try {
-        // Загружаем результаты из location state или localStorage
         if (location.state?.teamScore !== undefined) {
           setResults(location.state);
           await updateTeamScore(teamId, location.state.teamScore);
@@ -29,11 +30,9 @@ export default function QualificationResults() {
           }
         }
         
-        // Загружаем команду
         try {
           const teamRes = await getTeam(teamId);
           if (teamRes.data?.data) {
-            // Проверяем, не финалист ли уже отдел
             if (teamRes.data.data.is_finalist) {
               setIsAlreadyFinalist(true);
               setIsFinalist(true);
@@ -43,7 +42,6 @@ export default function QualificationResults() {
           console.error('Ошибка загрузки команды:', err);
         }
         
-        // Проверяем статус финалиста
         const statusRes = await getTeamFinalistStatus(teamId);
         if (statusRes.data?.data?.isFinalist) {
           setIsAlreadyFinalist(true);
@@ -52,6 +50,7 @@ export default function QualificationResults() {
         
       } catch (err) {
         console.error(err);
+        showToast('Ошибка загрузки результатов', 'error');
       } finally {
         setLoading(false);
       }
@@ -60,10 +59,8 @@ export default function QualificationResults() {
     loadResults();
   }, [teamId, location.state]);
 
-  // Автоматическое завершение квалификации при загрузке страницы, если команда в топ-3
   useEffect(() => {
     const autoComplete = async () => {
-      // Если уже финалист или уже завершили - не делаем ничего
       if (isAlreadyFinalist || autoCompleted) return;
       
       const myPosition = results?.position || 1;
@@ -81,7 +78,6 @@ export default function QualificationResults() {
           setIsFinalist(finalistStatus);
           
           if (finalistStatus) {
-            // Обновляем данные пользователя
             const userStr = localStorage.getItem('user');
             if (userStr) {
               const userData = JSON.parse(userStr);
@@ -92,11 +88,11 @@ export default function QualificationResults() {
               }
             }
             
-            // Сохраняем статус финалиста для отдела
             localStorage.setItem(`team_${teamId}_finalist`, 'true');
           }
         } catch (err) {
           console.error('❌ Ошибка при автоматическом завершении квалификации:', err);
+          showToast('Ошибка завершения квалификации', 'error');
         }
       }
     };
@@ -107,7 +103,6 @@ export default function QualificationResults() {
   }, [results, loading, isAlreadyFinalist, teamId, setUser]);
 
   const handleGoToMain = () => {
-    // Очищаем временные данные
     localStorage.removeItem('teamId');
     localStorage.removeItem('teamName');
     localStorage.removeItem('joinCode');

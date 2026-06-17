@@ -5,55 +5,57 @@ const { verifyToken } = require('../middleware/auth');
 
 // Получить вопросы для отборочного тура
 router.get('/questions', verifyToken, async (req, res) => {
-    try {
-        const { gameMode } = req.query;
-        const limit = 25;
-        
-        console.log('📚 Запрос вопросов, лимит:', limit);
-        
-        const questions = await query(`
-            SELECT 
-                q.id, 
-                q.question_text, 
-                q.option_a, 
-                q.option_b, 
-                q.option_c, 
-                q.option_d, 
-                q.correct_answer,
-                10 as points
-            FROM qualification_questions q
-            WHERE q.is_active = TRUE
-            ORDER BY RAND()
-            LIMIT ${parseInt(limit)}
-        `);
-        
-        console.log(`📚 Найдено вопросов: ${questions.length}`);
-        
-        let finalQuestions = [...questions];
-        while (finalQuestions.length < limit && finalQuestions.length > 0) {
-            finalQuestions = [...finalQuestions, ...questions];
-        }
-        finalQuestions = finalQuestions.slice(0, limit);
-        
-        const basePoints = gameMode === 'qualification' ? 10 : 20;
-        const result = finalQuestions.map(q => ({
-            id: q.id,
-            text: q.question_text,
-            options: { 
-                A: q.option_a || 'Вариант А', 
-                B: q.option_b || 'Вариант Б', 
-                C: q.option_c || 'Вариант В', 
-                D: q.option_d || 'Вариант Г' 
-            },
-            correct: q.correct_answer,
-            points: basePoints
-        }));
-        
-        res.json({ success: true, data: result });
-    } catch (error) {
-        console.error('❌ Ошибка загрузки вопросов:', error);
-        res.status(500).json({ success: false, message: 'Ошибка загрузки вопросов' });
+  try {
+    const { gameMode } = req.query;
+    const limit = 25;
+    
+    console.log('📚 Запрос вопросов, лимит:', limit);
+    
+    const questions = await query(`
+      SELECT 
+        q.id, 
+        q.question_text, 
+        q.option_a, 
+        q.option_b, 
+        q.option_c, 
+        q.option_d, 
+        q.correct_answer,
+        10 as points
+      FROM qualification_questions q
+      WHERE q.is_active = TRUE
+      ORDER BY RAND()
+      LIMIT ${parseInt(limit)}
+    `);
+    
+    console.log(`📚 Найдено вопросов: ${questions.length}`);
+    
+    let finalQuestions = [...questions];
+    while (finalQuestions.length < limit && finalQuestions.length > 0) {
+      finalQuestions = [...finalQuestions, ...questions];
     }
+    finalQuestions = finalQuestions.slice(0, limit);
+    
+    // ========== ИСПРАВЛЕНИЕ: ВСЕГДА 10 БАЛЛОВ ==========
+    const basePoints = 10; // Всегда 10 баллов за вопрос
+    
+    const result = finalQuestions.map(q => ({
+      id: q.id,
+      text: q.question_text,
+      options: { 
+        A: q.option_a || 'Вариант А', 
+        B: q.option_b || 'Вариант Б', 
+        C: q.option_c || 'Вариант В', 
+        D: q.option_d || 'Вариант Г' 
+      },
+      correct: q.correct_answer,
+      points: basePoints // Теперь всегда 10
+    }));
+    
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Ошибка загрузки вопросов:', error);
+    res.status(500).json({ success: false, message: 'Ошибка загрузки вопросов' });
+  }
 });
 
 // Сохранить прогресс отборочного тура

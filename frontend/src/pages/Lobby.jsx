@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTeam } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import DebugPanel from '../components/DebugPanel';
 
 export default function Lobby() {
   const { teamId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState(null);
@@ -26,6 +28,7 @@ export default function Lobby() {
       }
     } catch (err) {
       console.error(err);
+      showToast('Ошибка загрузки команды', 'error');
       navigate('/main');
     } finally {
       setLoading(false);
@@ -83,7 +86,6 @@ export default function Lobby() {
   return (
     <div className="lobby-page">
       <div className="lobby-container">
-        {/* Шапка */}
         <div className="lobby-header">
           <div className="lobby-logo">🏢</div>
           <div>
@@ -92,7 +94,6 @@ export default function Lobby() {
           </div>
         </div>
 
-        {/* Обратный отсчёт */}
         {countdown !== null && (
           <div className="lobby-countdown">
             <div className="countdown-number">{countdown}</div>
@@ -100,7 +101,6 @@ export default function Lobby() {
           </div>
         )}
 
-        {/* Правила игры */}
         <div className="lobby-rules-card">
           <div className="rules-header">
             <div className="rules-icon">📜</div>
@@ -142,7 +142,6 @@ export default function Lobby() {
           </div>
         </div>
 
-        {/* Кнопка старта */}
         <button
           onClick={handleStartGame}
           disabled={countdown !== null}
@@ -151,7 +150,6 @@ export default function Lobby() {
           {countdown !== null ? 'ИГРА НАЧИНАЕТСЯ...' : '🚀 НАЧАТЬ ОТБОР'}
         </button>
 
-        {/* Кнопка назад */}
         <button onClick={() => navigate('/main')} className="lobby-back-btn">
           ← ВЕРНУТЬСЯ НА ГЛАВНУЮ
         </button>

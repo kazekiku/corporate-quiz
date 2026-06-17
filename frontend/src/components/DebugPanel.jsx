@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from '../hooks/useToast';
 
 export default function DebugPanel({ 
   teamId, 
@@ -20,6 +21,7 @@ export default function DebugPanel({
   isFinalLobby 
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { showToast } = useToast();
   const [isBecomingFinalist, setIsBecomingFinalist] = useState(false);
   const [isClearingDB, setIsClearingDB] = useState(false);
   const [isAddingTestTeams, setIsAddingTestTeams] = useState(false);
@@ -38,13 +40,13 @@ export default function DebugPanel({
       });
       const data = await response.json();
       if (data.success) {
-        alert('✅ Вы стали финалистом!');
-        window.location.reload();
+        showToast('Вы стали финалистом!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
       } else {
-        alert('❌ Ошибка: ' + data.message);
+        showToast('Ошибка: ' + data.message, 'error');
       }
     } catch (error) {
-      alert('❌ Ошибка: ' + error.message);
+      showToast('Ошибка: ' + error.message, 'error');
     } finally {
       setIsBecomingFinalist(false);
     }
@@ -64,14 +66,14 @@ export default function DebugPanel({
       });
       const data = await response.json();
       if (data.success) {
-        alert('✅ База данных очищена!');
+        showToast('База данных очищена!', 'success');
         localStorage.clear();
-        window.location.href = '/';
+        setTimeout(() => window.location.href = '/', 1500);
       } else {
-        alert('❌ Ошибка: ' + data.message);
+        showToast('Ошибка: ' + data.message, 'error');
       }
     } catch (error) {
-      alert('❌ Ошибка: ' + error.message);
+      showToast('Ошибка: ' + error.message, 'error');
     } finally {
       setIsClearingDB(false);
     }
@@ -90,13 +92,13 @@ export default function DebugPanel({
       });
       const data = await response.json();
       if (data.success) {
-        alert(`✅ Добавлено ${data.addedCount} тестовых команд!`);
-        window.location.reload();
+        showToast(`Добавлено ${data.addedCount} тестовых команд!`, 'success');
+        setTimeout(() => window.location.reload(), 1500);
       } else {
-        alert('❌ Ошибка: ' + data.message);
+        showToast('Ошибка: ' + data.message, 'error');
       }
     } catch (error) {
-      alert('❌ Ошибка: ' + error.message);
+      showToast('Ошибка: ' + error.message, 'error');
     } finally {
       setIsAddingTestTeams(false);
     }
@@ -114,36 +116,50 @@ export default function DebugPanel({
       });
       const data = await response.json();
       if (data.success) {
-        alert('✅ Следующий вопрос!');
-        window.location.reload();
+        showToast('Следующий вопрос!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
       } else {
-        alert('❌ Ошибка: ' + data.message);
+        showToast('Ошибка: ' + data.message, 'error');
       }
     } catch (error) {
-      alert('❌ Ошибка: ' + error.message);
+      showToast('Ошибка: ' + error.message, 'error');
     }
   };
 
   const handleForceEndGame = async () => {
     if (!confirm('⚠️ Принудительно завершить игру? Все вопросы будут считаться использованными.')) return;
+    
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/final/end-game', {
+      
+      const resultsResponse = await fetch('http://localhost:3001/api/final/results', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const resultsData = await resultsResponse.json();
+      console.log('📊 Финальные результаты:', resultsData);
+      
+      const endResponse = await fetch('http://localhost:3001/api/final/end-game', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      const data = await response.json();
-      if (data.success) {
-        alert('✅ Игра завершена!');
-        window.location.href = '/main';
+      const endData = await endResponse.json();
+      
+      if (endData.success) {
+        showToast('Игра завершена!', 'success');
+        setTimeout(() => {
+          window.location.href = `/final-results?results=${encodeURIComponent(JSON.stringify(resultsData.data || []))}`;
+        }, 1500);
       } else {
-        alert('❌ Ошибка: ' + data.message);
+        showToast('Ошибка: ' + endData.message, 'error');
       }
     } catch (error) {
-      alert('❌ Ошибка: ' + error.message);
+      console.error('❌ Ошибка:', error);
+      showToast('Ошибка: ' + error.message, 'error');
     }
   };
 
@@ -159,13 +175,13 @@ export default function DebugPanel({
       });
       const data = await response.json();
       if (data.success) {
-        alert('✅ Игра принудительно начата!');
-        window.location.reload();
+        showToast('Игра принудительно начата!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
       } else {
-        alert('❌ Ошибка: ' + data.message);
+        showToast('Ошибка: ' + data.message, 'error');
       }
     } catch (error) {
-      alert('❌ Ошибка: ' + error.message);
+      showToast('Ошибка: ' + error.message, 'error');
     }
   };
 
@@ -182,13 +198,13 @@ export default function DebugPanel({
       });
       const data = await response.json();
       if (data.success) {
-        alert(`✅ Добавлено ${pointsToAdd} баллов!`);
-        window.location.reload();
+        showToast(`Добавлено ${pointsToAdd} баллов!`, 'success');
+        setTimeout(() => window.location.reload(), 1500);
       } else {
-        alert('❌ Ошибка: ' + data.message);
+        showToast('Ошибка: ' + data.message, 'error');
       }
     } catch (error) {
-      alert('❌ Ошибка: ' + error.message);
+      showToast('Ошибка: ' + error.message, 'error');
     }
   };
 

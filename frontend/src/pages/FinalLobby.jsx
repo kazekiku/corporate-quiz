@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getFinalLobbyInfo, setFinalTeamReady } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import DebugPanel from '../components/DebugPanel';
 import NeonBorder from '../components/NeonBorder';
 import LedLight from '../components/LedLight';
 
 export default function FinalLobby() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth(); // <-- ДОБАВЛЯЕМ authLoading
+  const { user, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [teams, setTeams] = useState([]);
   const [gameStarted, setGameStarted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -16,7 +18,6 @@ export default function FinalLobby() {
   const [error, setError] = useState(null);
 
   const loadLobby = async () => {
-    // Ждём, пока загрузится пользователь
     if (authLoading || !user) {
       console.log('⏳ Ожидаем загрузку пользователя...');
       setLoading(true);
@@ -42,7 +43,6 @@ export default function FinalLobby() {
       setTeams(data.teams || []);
       setGameStarted(data.gameStarted || false);
       
-      // Находим команду пользователя
       let myTeamData = null;
       
       if (data.teams && user) {
@@ -68,14 +68,12 @@ export default function FinalLobby() {
   };
 
   useEffect(() => {
-    // Загружаем лобби только когда пользователь загружен
     if (!authLoading && user) {
       loadLobby();
     }
   }, [authLoading, user]);
 
   useEffect(() => {
-    // Периодическое обновление только если пользователь есть
     if (!user) return;
     
     const interval = setInterval(() => {
@@ -87,20 +85,19 @@ export default function FinalLobby() {
 
   const handleSetReady = async () => {
     if (!user) {
-      alert('❌ Пожалуйста, войдите в систему');
+      showToast('Пожалуйста, войдите в систему', 'warning');
       return;
     }
     
     try {
       await setFinalTeamReady();
-      alert('✅ Вы готовы к финалу!');
+      showToast('Вы готовы к финалу!', 'success');
       await loadLobby();
     } catch (err) {
-      alert('❌ Ошибка: ' + (err.response?.data?.message || err.message));
+      showToast(err.response?.data?.message || err.message, 'error');
     }
   };
 
-  // ПОКАЗЫВАЕМ ЗАГРУЗКУ, ПОКА ПОЛЬЗОВАТЕЛЬ НЕ ЗАГРУЗИЛСЯ
   if (authLoading) {
     return (
       <div className="auth-layout">
@@ -118,7 +115,6 @@ export default function FinalLobby() {
     );
   }
 
-  // ЕСЛИ НЕТ ПОЛЬЗОВАТЕЛЯ — РЕДИРЕКТ НА РЕГИСТРАЦИЮ
   if (!user) {
     navigate('/');
     return null;
@@ -154,7 +150,6 @@ export default function FinalLobby() {
     );
   }
 
-  // Проверяем, все ли участники готовы
   const allReady = teams.length === 3 && teams.every(t => t.isReady === true);
   const myTeamReady = myTeam?.isReady || false;
 
@@ -186,7 +181,6 @@ export default function FinalLobby() {
           </div>
         </div>
 
-        {/* Карточки команд */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px', marginTop: '24px' }}>
           {teams.map((team, index) => {
             const isUserInTeam = team.participants?.includes(user?.id);
@@ -199,8 +193,15 @@ export default function FinalLobby() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <span style={{ fontSize: '28px', marginRight: '12px' }}>
-                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅'}
+                    <span style={{ 
+                      fontSize: '18px', 
+                      fontWeight: 'bold', 
+                      color: 'rgba(255,255,255,0.4)',
+                      marginRight: '12px',
+                      minWidth: '24px',
+                      display: 'inline-block'
+                    }}>
+                      #{index + 1}
                     </span>
                     <strong style={{ fontSize: '20px' }}>{team.name}</strong>
                     {isUserInTeam && (
@@ -227,7 +228,6 @@ export default function FinalLobby() {
           })}
         </div>
 
-        {/* Пустые слоты */}
         {teams.length === 0 && (
           <div className="card text-center" style={{ padding: '40px', marginBottom: '24px', background: 'rgba(0,0,0,0.2)' }}>
             <p style={{ color: '#f0c564', fontSize: '18px' }}>🏆 Вы первый финалист!</p>
@@ -247,7 +247,6 @@ export default function FinalLobby() {
           </div>
         )}
 
-        {/* Кнопка готовности */}
         {myTeam && !myTeamReady && (
           <button 
             onClick={handleSetReady} 

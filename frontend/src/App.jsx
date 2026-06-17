@@ -12,8 +12,8 @@ import FinalLobby from './pages/FinalLobby';
 import Final from './pages/Final';
 import FinalResults from './pages/FinalResults';
 import { useAuth } from './hooks/useAuth';
+import { useToast } from './hooks/useToast';
 
-// Компонент для защиты маршрутов
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   
@@ -42,7 +42,8 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
-  // Генерируем уникальный ID для вкладки
+  const { ToastContainer } = useToast();
+
   useEffect(() => {
     const tabId = sessionStorage.getItem('tabId');
     if (!tabId) {
@@ -52,53 +53,44 @@ function App() {
 
   return (
     <BrowserRouter>
+      {ToastContainer()}
       <Routes>
-        {/* Публичные маршруты */}
         <Route path="/" element={<Register />} />
-        
-        {/* Защищённые маршруты */}
         <Route path="/main" element={
           <ProtectedRoute>
             <Main />
           </ProtectedRoute>
         } />
-        
         <Route path="/lobby/:teamId" element={
           <ProtectedRoute>
             <Lobby />
           </ProtectedRoute>
         } />
-        
         <Route path="/qualification/:teamId" element={
           <ProtectedRoute>
             <Qualification />
           </ProtectedRoute>
         } />
-        
         <Route path="/qualification-results/:teamId" element={
           <ProtectedRoute>
             <QualificationResults />
           </ProtectedRoute>
         } />
-        
         <Route path="/rating" element={
           <ProtectedRoute>
             <Rating />
           </ProtectedRoute>
         } />
-        
         <Route path="/final-lobby" element={
           <ProtectedRoute>
             <FinalLobby />
           </ProtectedRoute>
         } />
-        
         <Route path="/final" element={
           <ProtectedRoute>
             <Final />
           </ProtectedRoute>
         } />
-        
         <Route path="/final-results" element={
           <ProtectedRoute>
             <FinalResults />

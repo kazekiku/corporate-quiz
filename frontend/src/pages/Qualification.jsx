@@ -1,16 +1,16 @@
-// pages/Qualification.jsx
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTeam, getQualificationQuestions, getQualificationProgress, saveQualificationProgress, resetQualificationProgress } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import DebugPanel from '../components/DebugPanel';
-import LedLight from '../components/LedLight';
 import NeonBorder from '../components/NeonBorder';
 
 export default function Qualification() {
   const { teamId } = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   
   const [team, setTeam] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -39,15 +39,17 @@ export default function Qualification() {
         
         setTeam(teamData);
         
-        const savedGameMode = localStorage.getItem('gameMode') || 'qualification';
-        const config = savedGameMode === 'qualification' 
-          ? { totalQuestions: 25, pointsPerQuestion: 10, timeLimit: 900, name: 'Классический тур' }
-          : { totalQuestions: 25, pointsPerQuestion: 20, timeLimit: 600, name: 'Экстрим тур' };
+        const config = {
+          totalQuestions: 25,
+          pointsPerQuestion: 10,
+          timeLimit: 900,
+          name: 'Отборочный тур'
+        };
         setGameConfig(config);
         setTimeLeft(config.timeLimit);
         
         console.log('📚 Загружаем вопросы...');
-        const questionsRes = await getQualificationQuestions(savedGameMode);
+        const questionsRes = await getQualificationQuestions('qualification');
         const questionsData = questionsRes.data?.data || [];
         console.log('📚 Получено вопросов:', questionsData.length);
         setQuestions(questionsData);
@@ -134,7 +136,7 @@ export default function Qualification() {
     
     setSelectedAnswer(answerKey);
     const isCorrect = answerKey === currentQuestion.correct;
-    const pointsEarned = isCorrect ? currentQuestion.points : 0;
+    const pointsEarned = isCorrect ? 10 : 0;
     
     setLastResult({
       isCorrect,
@@ -273,7 +275,6 @@ export default function Qualification() {
     <div className="quiz-layout-centered">
       <div className="quiz-container">
         <div className="quiz-card scale-in">
-          {/* Шапка */}
           <div className="quiz-header slide-in-left">
             <div className="quiz-logo">📚</div>
             <div>
@@ -282,7 +283,6 @@ export default function Qualification() {
             </div>
           </div>
 
-          {/* Статистика */}
           <div className="quiz-stats-centered">
             <NeonBorder color="blue" className="stat-pill">
               👥 {team?.name}
@@ -298,7 +298,6 @@ export default function Qualification() {
             </NeonBorder>
           </div>
 
-          {/* Прогресс-бар */}
           <div style={{ marginBottom: '24px' }}>
             <div style={{ 
               display: 'flex', 
@@ -325,16 +324,14 @@ export default function Qualification() {
             </div>
           </div>
 
-          {/* Вопрос */}
           <div key={currentIndex} className="question-flip">
             <NeonBorder color="blue" className="question-card">
               <div className="question-category">ВОПРОС {currentIndex + 1}</div>
               <h2>{currentQuestion?.text || 'Загрузка вопроса...'}</h2>
-              <div className="difficulty-badge">{currentQuestion?.points || gameConfig.pointsPerQuestion} баллов</div>
+              <div className="difficulty-badge">10 баллов</div>
             </NeonBorder>
           </div>
 
-          {/* Варианты ответов */}
           <div className="answers">
             {['A', 'B', 'C', 'D'].map((key) => {
               let btnClass = 'answer-btn';
@@ -355,7 +352,6 @@ export default function Qualification() {
             })}
           </div>
 
-          {/* Результат */}
           {showResult && lastResult && (
             <div className={`result-card ${lastResult.isCorrect ? 'correct' : 'wrong'} notification-pop`}>
               <div className={`result-title ${lastResult.isCorrect ? 'correct' : 'wrong'}`}>
@@ -391,10 +387,10 @@ export default function Qualification() {
         onSpeedUpTimer={() => setTimeLeft(prev => Math.max(prev - 10, 0))}
         onPerfectPass={async () => {
           if (confirm('Пройти тур идеально?')) {
-            const maxScore = questions.length * (gameConfig?.pointsPerQuestion || 10);
+            const maxScore = questions.length * 10;
             setTeamScore(maxScore);
             setIsFinished(true);
-            alert(`✅ Тур пройден идеально! Набрано ${maxScore} баллов`);
+            showToast(`Тур пройден идеально! Набрано ${maxScore} баллов`, 'success');
           }
         }}
       />

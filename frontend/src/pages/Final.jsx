@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getFinalBoard, pickQuestion, submitFinalAnswer, nextTurn } from '../api/client';
+import { getFinalBoard, pickQuestion, submitFinalAnswer, nextTurn, getFinalResults } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import LedLight from '../components/LedLight';
 import DebugPanel from '../components/DebugPanel';
 
 export default function Final() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const [board, setBoard] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [answerInput, setAnswerInput] = useState('');
@@ -20,8 +22,6 @@ export default function Final() {
   const [questionLocked, setQuestionLocked] = useState(false);
   const [allTeamsAnswered, setAllTeamsAnswered] = useState(false);
   const [timeEnded, setTimeEnded] = useState(false);
-  const [nextTurnTimer, setNextTurnTimer] = useState(null);
-  const [countdownToNext, setCountdownToNext] = useState(5);
 
   const loadBoard = async () => {
     if (authLoading || !user) {
@@ -38,6 +38,26 @@ export default function Final() {
       setBoard(data);
       setAllTeamsAnswered(data?.allTeamsAnswered || false);
       setTimeEnded(data?.timeEnded || false);
+      
+      if (data?.gameFinished) {
+        console.log('🏁 ИГРА ЗАВЕРШЕНА! Переходим на страницу результатов...');
+        
+        try {
+          const resultsRes = await getFinalResults();
+          console.log('📊 Финальные результаты:', resultsRes.data);
+          
+          navigate('/final-results', { 
+            state: { 
+              results: resultsRes.data.data,
+              teams: data.teams
+            } 
+          });
+        } catch (err) {
+          console.error('❌ Ошибка получения результатов:', err);
+          navigate('/main');
+        }
+        return;
+      }
       
       if (data?.teams && user) {
         console.log('👥 Все команды:', data.teams);
@@ -82,35 +102,15 @@ export default function Final() {
         setHasAnswered(false);
       }
       
-      // Если есть результаты - показываем сразу
       if (data?.showResults && data?.results) {
         console.log('📊 ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ:', data.results);
         setShowResults(true);
         setResults(data.results);
-        
-        // Автоматический переход через 5 секунд
-        if (nextTurnTimer) {
-          clearInterval(nextTurnTimer);
-          setNextTurnTimer(null);
-        }
-        
-        let count = 5;
-        setCountdownToNext(count);
-        
-        const timer = setInterval(() => {
-          count -= 1;
-          setCountdownToNext(count);
-          if (count <= 0) {
-            clearInterval(timer);
-            setNextTurnTimer(null);
-            handleNextTurn();
-          }
-        }, 1000);
-        setNextTurnTimer(timer);
       }
       
     } catch (err) {
       console.error('❌ Ошибка загрузки:', err);
+      showToast('Ошибка загрузки', 'error');
       navigate('/main');
     } finally {
       setLoading(false);
@@ -119,34 +119,43 @@ export default function Final() {
 
   const handleNextTurn = async () => {
     try {
+      const res = await nextTurn();
+      console.log('🔄 Ответ /next-turn:', res.data);
+      
+      if (res.data?.gameFinished) {
+        console.log('🏁 Игра завершена! (из /next-turn)');
+        navigate('/final-results', { 
+          state: { 
+            results: res.data.results,
+            teams: board?.teams || []
+          } 
+        });
+        return;
+      }
+      
       setShowResults(false);
       setResults(null);
       setAnswerInput('');
       setHasAnswered(false);
       setCurrentQuestion(null);
-      setCountdownToNext(5);
-      if (nextTurnTimer) {
-        clearInterval(nextTurnTimer);
-        setNextTurnTimer(null);
-      }
-      await nextTurn();
       await loadBoard();
     } catch (err) {
       console.error(err);
+      showToast('Ошибка при переходе хода', 'error');
     }
   };
 
   const handlePickQuestion = async (categoryId, value) => {
     if (questionLocked) {
-      alert('Вопрос уже выбран, подождите...');
+      showToast('Вопрос уже выбран, подождите...', 'warning');
       return;
     }
     if (!isMyTurn) {
-      alert('⏳ Сейчас не ваш ход выбирать вопрос!');
+      showToast('Сейчас не ваш ход выбирать вопрос!', 'warning');
       return;
     }
     if (currentQuestion) {
-      alert('Сначала завершите текущий вопрос');
+      showToast('Сначала завершите текущий вопрос', 'warning');
       return;
     }
     
@@ -159,7 +168,7 @@ export default function Final() {
       const questionData = res.data?.data;
       
       if (!questionData?.id) {
-        alert('Ошибка при выборе вопроса');
+        showToast('Ошибка при выборе вопроса', 'error');
         setQuestionLocked(false);
         return;
       }
@@ -173,26 +182,26 @@ export default function Final() {
       setQuestionLocked(false);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Не удалось выбрать вопрос');
+      showToast(err.response?.data?.message || 'Не удалось выбрать вопрос', 'error');
       setQuestionLocked(false);
     }
   };
 
   const handleSubmitAnswer = async () => {
     if (!answerInput.trim()) {
-      alert('Введите ответ');
+      showToast('Введите ответ', 'warning');
       return;
     }
     if (hasAnswered) {
-      alert('Вы уже ответили на этот вопрос');
+      showToast('Вы уже ответили на этот вопрос', 'warning');
       return;
     }
     if (timeLeft <= 0) {
-      alert('Время вышло!');
+      showToast('Время вышло!', 'error');
       return;
     }
     if (!currentQuestion) {
-      alert('Нет активного вопроса');
+      showToast('Нет активного вопроса', 'error');
       return;
     }
     
@@ -200,25 +209,23 @@ export default function Final() {
       const res = await submitFinalAnswer(currentQuestion.id, answerInput);
       console.log('📝 Ответ отправлен:', res.data);
       setHasAnswered(true);
-      alert('✅ Ваш ответ принят!');
+      showToast('Ваш ответ принят!', 'success');
       
       setTimeout(() => {
         loadBoard();
       }, 500);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Не удалось отправить ответ');
+      showToast(err.response?.data?.message || 'Не удалось отправить ответ', 'error');
     }
   };
 
-  // Загружаем при монтировании и при изменении user
   useEffect(() => {
     if (!authLoading && user) {
       loadBoard();
     }
   }, [authLoading, user]);
 
-  // Периодическое обновление
   useEffect(() => {
     if (!user) return;
     
@@ -226,13 +233,9 @@ export default function Final() {
       loadBoard();
     }, 3000);
     
-    return () => {
-      clearInterval(interval);
-      if (nextTurnTimer) clearInterval(nextTurnTimer);
-    };
+    return () => clearInterval(interval);
   }, [user]);
 
-  // Таймер вопроса
   useEffect(() => {
     if (!currentQuestion || hasAnswered || showResults) return;
     
@@ -251,10 +254,6 @@ export default function Final() {
     return () => clearInterval(timer);
   }, [currentQuestion, hasAnswered, showResults]);
 
-  // ============================================================
-  // ВСЕ ВЫЧИСЛЕНИЯ
-  // ============================================================
-  
   const teams = board?.teams || [];
   const categories = board?.categories || [];
   const isMyTurn = board?.currentTurnTeamId === myTeamId;
@@ -262,10 +261,6 @@ export default function Final() {
   console.log('🎮 myTeamId:', myTeamId);
   console.log('🎮 currentTurnTeamId:', board?.currentTurnTeamId);
   console.log('🎮 isMyTurn:', isMyTurn);
-
-  // ============================================================
-  // РАННИЕ ВОЗВРАТЫ
-  // ============================================================
 
   if (authLoading) {
     return (
@@ -342,7 +337,7 @@ export default function Final() {
   }
 
   // ============================================================
-  // ПОКАЗ РЕЗУЛЬТАТОВ — КРАСИВАЯ ТАБЛИЦА
+  // ПОКАЗ РЕЗУЛЬТАТОВ
   // ============================================================
   
   if (showResults && results) {
@@ -353,25 +348,21 @@ export default function Final() {
       ? teams.find(t => t.id === results.nextTurnTeamId)
       : null;
     const turnReason = results.turnReason || '';
+    const gameFinished = results.gameFinished || false;
     
     return (
       <div className="final-page">
         <div className="final-container">
           <div className="final-card fade-in" style={{ maxWidth: '900px', margin: '0 auto' }}>
             
-            {/* Заголовок результатов */}
             <div className="final-header" style={{ textAlign: 'center', borderBottom: '2px solid rgba(240,197,100,0.3)' }}>
               <div style={{ fontSize: '48px', marginBottom: '8px' }}>📊</div>
               <h1 style={{ color: '#f0c564', fontSize: '32px' }}>Результаты раунда</h1>
               <p style={{ color: 'rgba(255,255,255,0.6)' }}>
                 {results.question?.category} • 💰 {results.question?.value} баллов
               </p>
-              <p style={{ fontSize: '14px', color: '#f0c564', marginTop: '8px' }}>
-                ⏳ Следующий ход через {countdownToNext} сек...
-              </p>
             </div>
 
-            {/* Вопрос */}
             <div className="card" style={{ 
               marginTop: '24px', 
               marginBottom: '24px',
@@ -385,7 +376,6 @@ export default function Final() {
               </p>
             </div>
 
-            {/* Таблица результатов */}
             <div className="rating-table" style={{ marginBottom: '24px' }}>
               <div className="rating-table-head" style={{
                 gridTemplateColumns: '50px 1fr 1fr 80px 100px',
@@ -437,11 +427,11 @@ export default function Final() {
                   >
                     <div style={{ 
                       textAlign: 'center', 
-                      fontSize: '20px',
+                      fontSize: '18px',
                       fontWeight: 'bold',
-                      color: isLeader ? '#f0c564' : 'white'
+                      color: isLeader ? '#f0c564' : 'rgba(255,255,255,0.6)'
                     }}>
-                      {isLeader ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`}
+                      #{index + 1}
                     </div>
                     
                     <div style={{ 
@@ -512,7 +502,6 @@ export default function Final() {
               })}
             </div>
 
-            {/* Информация о следующем ходе */}
             <div className="card text-center" style={{ 
               marginBottom: '24px',
               background: hasCorrectAnswer 
@@ -527,7 +516,7 @@ export default function Final() {
               <p style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>
                 {turnReason || (hasCorrectAnswer 
                   ? `Правильно ответила команда "${leader?.team_name}" и продолжает!` 
-                  : 'Никто не ответил правильно → ход переходит к следующей команде')}
+                  : 'Никто не ответил правильно → ход остаётся у текущей команды')}
               </p>
               {nextTeamInfo && (
                 <p style={{ color: '#f0c564', fontSize: '14px', marginTop: '4px' }}>
@@ -536,7 +525,6 @@ export default function Final() {
               )}
             </div>
 
-            {/* Кнопка следующего хода */}
             <div className="text-center">
               <button 
                 onClick={handleNextTurn} 
@@ -550,9 +538,6 @@ export default function Final() {
               >
                 {hasCorrectAnswer ? 'Продолжить →' : 'Следующий ход →'}
               </button>
-              <p className="text-muted" style={{ marginTop: '12px', fontSize: '13px' }}>
-                Автоматический переход через {countdownToNext} секунд...
-              </p>
             </div>
           </div>
         </div>

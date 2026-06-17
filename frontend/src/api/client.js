@@ -180,3 +180,8 @@ export const addPointsToTeam = async (points) => {
   const response = await api.post('/final/add-points', { points });
   return response;
 };
+// Получение финальных результатов
+export const getFinalResults = async () => {
+  const response = await api.get('/final/results');
+  return response;
+};

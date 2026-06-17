@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { register, getMe } from '../api/client';
+import { useToast } from '../hooks/useToast';
 
 export default function Register() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [teamName, setTeamName] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Проверяем, есть ли уже активная сессия
   useEffect(() => {
     const checkSession = async () => {
       const token = localStorage.getItem('token');
@@ -16,11 +16,9 @@ export default function Register() {
         try {
           const res = await getMe();
           if (res.data?.data) {
-            // Уже есть активная сессия - перенаправляем на главную
             navigate('/main');
           }
         } catch (err) {
-          // Токен невалидный, чистим
           localStorage.removeItem('token');
           localStorage.removeItem('user');
         }
@@ -31,14 +29,15 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     
     if (!teamName.trim()) {
-      return setError('Введите название отдела');
+      showToast('Введите название отдела', 'warning');
+      return;
     }
     
     if (teamName.length > 50) {
-      return setError('Название отдела не может превышать 50 символов');
+      showToast('Название отдела не может превышать 50 символов', 'warning');
+      return;
     }
     
     setLoading(true);
@@ -55,11 +54,12 @@ export default function Register() {
         localStorage.setItem('teamName', res.data.data.teamName);
       }
       
+      showToast('Отдел успешно создан!', 'success');
       navigate('/main');
       
     } catch (err) {
       console.error('Ошибка регистрации:', err);
-      setError(err.response?.data?.message || 'Ошибка при создании отдела');
+      showToast(err.response?.data?.message || 'Ошибка при создании отдела', 'error');
     } finally {
       setLoading(false);
     }
@@ -88,8 +88,6 @@ export default function Register() {
               autoFocus
             />
           </div>
-
-          {error && <div className="register-error">{error}</div>}
 
           <button type="submit" disabled={loading} className="register-btn">
             {loading ? 'Создание...' : '🚀 СОЗДАТЬ ОТДЕЛ'}

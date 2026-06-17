@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import { 
   getTeam, 
   getTeamFinalistStatus
@@ -11,6 +12,7 @@ import DebugPanel from '../components/DebugPanel';
 export default function Main() {
   const navigate = useNavigate();
   const { user, loading, logout, setUser } = useAuth();
+  const { showToast } = useToast();
   const [team, setTeam] = useState(null);
   const [isFinalist, setIsFinalist] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +52,7 @@ export default function Main() {
         
       } catch (err) {
         console.error('❌ Ошибка загрузки:', err);
+        showToast('Ошибка загрузки данных', 'error');
       } finally {
         setIsLoading(false);
       }
@@ -72,7 +75,7 @@ export default function Main() {
     try {
       if (selectedMode === 'final') {
         if (!isFinalist && !team?.is_finalist) {
-          setError('Тур 2 доступен только отделам-финалистам!');
+          showToast('Тур 2 доступен только отделам-финалистам!', 'warning');
           return;
         }
         
@@ -80,7 +83,7 @@ export default function Main() {
         navigate('/final-lobby');
       } else {
         if (isFinalist || team?.is_finalist) {
-          setError('Ваш отдел уже финалист! Участвовать в отборочном туре снова нельзя.');
+          showToast('Ваш отдел уже финалист! Участвовать в отборочном туре снова нельзя.', 'warning');
           return;
         }
         setShowTourModal(false);
@@ -88,7 +91,7 @@ export default function Main() {
       }
     } catch (err) {
       console.error('Ошибка:', err);
-      setError(err.response?.data?.message || 'Ошибка создания игры');
+      showToast(err.response?.data?.message || 'Ошибка создания игры', 'error');
     }
   };
 
