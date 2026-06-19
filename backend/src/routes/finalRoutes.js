@@ -1036,5 +1036,52 @@ router.get('/debug-user/:userId', verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
+// ПРИНУДИТЕЛЬНО ПЕРЕКЛЮЧИТЬ ХОД (дебаг)
+router.post('/debug-next-turn', verifyToken, async (req, res) => {
+  try {
+    console.log('🔄 /debug-next-turn START');
+    
+    const lobby = await query('SELECT id, current_turn_team_id FROM final_lobbies WHERE session_id = ?', ['FINAL']);
+    if (lobby.length === 0) {
+      return res.status(404).json({ success: false, message: 'Игра не найдена' });
+    }
+    
+    const lobbyId = lobby[0].id;
+    const currentTeamId = lobby[0].current_turn_team_id;
+    
+    // Получаем все команды по порядку
+    const teams = await query('SELECT id FROM final_teams WHERE lobby_id = ? ORDER BY id', [lobbyId]);
+    if (teams.length === 0) {
+      return res.status(404).json({ success: false, message: 'Нет команд' });
+    }
+    
+    // Находим текущий индекс
+    let currentIndex = teams.findIndex(t => t.id === currentTeamId);
+    if (currentIndex === -1) currentIndex = 0;
+    
+    // Следующая команда по кругу
+    const nextIndex = (currentIndex + 1) % teams.length;
+    const nextTeamId = teams[nextIndex].id;
+    
+    console.log(`🔄 Принудительное переключение: ${currentTeamId} → ${nextTeamId}`);
+    
+    // Обновляем ход
+    await query('UPDATE final_lobbies SET current_turn_team_id = ? WHERE id = ?', [nextTeamId, lobbyId]);
+    await query('UPDATE final_lobbies SET current_question_id = NULL, question_started_at = NULL WHERE id = ?', [lobbyId]);
+    await query('UPDATE final_lobbies SET current_results = NULL, results_shown = 1 WHERE id = ?', [lobbyId]);
+    
+    // Проверяем
+    const check = await query('SELECT current_turn_team_id FROM final_lobbies WHERE id = ?', [lobbyId]);
+    console.log(`✅ Ход переключён на команду ${check[0].current_turn_team_id}`);
+    
+    res.json({ 
+      success: true, 
+      nextTeamId: nextTeamId,
+      previousTeamId: currentTeamId
+    });
+  } catch (error) {
+    console.error('❌ Ошибка в /debug-next-turn:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 module.exports = router;

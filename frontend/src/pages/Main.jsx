@@ -176,7 +176,7 @@ export default function Main() {
         <div className="battle-content">
           <div className="battle-main">
             <button onClick={handleStartGame} className="battle-start-btn">
-              ВОЙТИ В ИГРУ <span style={{ fontSize: '20px' }}>→</span> К ВЫБОРУ ТУРОВ
+              ВОЙТИ В ИГРУ <span className="arrow">→</span> К ВЫБОРУ ТУРОВ
             </button>
 
             <div className="team-status-card">

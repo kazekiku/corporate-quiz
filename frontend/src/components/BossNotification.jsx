@@ -1,5 +1,6 @@
-// components/BossNotification.js
+// components/BossNotification.jsx
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const BossAvatar = () => (
   <svg
@@ -19,12 +20,14 @@ const BossAvatar = () => (
 
 const getMessageByPath = (path) => {
   if (path === '/') return '«У вас есть ещё работа? Сейчас посмотрим, на что способны.»';
-  if (path === '/main') return '«Не заставляйте меня ждать. Время — деньги. Мои деньги.»';
-  if (path.startsWith('/lobby')) return '«Кто не готов — тот не работает. Кто не работает — тот уволен.»';
-  if (path.startsWith('/qualification')) return '«Покажите, на что способны. Ошибки не прощаю.»';
-  if (path.startsWith('/rating')) return '«Смотрю на рейтинг. Кто на дне — подумайте о будущем.»';
-  if (path.startsWith('/final-lobby')) return '«ФИНАЛ. Покажите, на что способны. Или провалитесь.»';
-  if (path.startsWith('/final')) return '«Это последний шанс. Не подведите.»';
+  if (path === '/main' || path === '/home') return '«Не заставляйте меня ждать. Время — деньги. Мои деньги.»';
+  if (path.includes('/lobby')) return '«Кто не готов — тот не работает. Кто не работает — тот уволен.»';
+  if (path.includes('/qualification')) return '«Покажите, на что способны. Ошибки не прощаю.»';
+  if (path.includes('/rating')) return '«Смотрю на рейтинг. Кто на дне — подумайте о будущем.»';
+  if (path.includes('/final-lobby')) return '«ФИНАЛ. Покажите, на что способны. Или провалитесь.»';
+  if (path.includes('/final')) return '«Это последний шанс. Не подведите.»';
+  if (path.includes('/team')) return '«Команда? Посмотрим, чего вы стоите.»';
+  if (path.includes('/auth')) return '«Авторизация? Не подведите меня.»';
   return '«Докажите свою эффективность.»';
 };
 
@@ -33,9 +36,10 @@ export default function BossNotification() {
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const timerRef = useRef(null);
+  const location = useLocation();
 
   useEffect(() => {
-    const currentPath = window.location.pathname;
+    const currentPath = location.pathname;
     
     // Очищаем предыдущий таймер
     if (timerRef.current) {
@@ -67,7 +71,7 @@ export default function BossNotification() {
         clearTimeout(timerRef.current);
       }
     };
-  }, [window.location.pathname]);
+  }, [location.pathname]);
 
   const handleClose = () => {
     if (timerRef.current) {

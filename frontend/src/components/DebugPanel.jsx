@@ -18,7 +18,8 @@ export default function DebugPanel({
   onResetGame,
   onForceNextQuestion,
   onForceEndGame,
-  isFinalLobby 
+  isFinalLobby,
+  isFinalGame
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { showToast } = useToast();
@@ -26,6 +27,7 @@ export default function DebugPanel({
   const [isClearingDB, setIsClearingDB] = useState(false);
   const [isAddingTestTeams, setIsAddingTestTeams] = useState(false);
   const [pointsToAdd, setPointsToAdd] = useState(100);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleBecomeFinalist = async () => {
     setIsBecomingFinalist(true);
@@ -80,6 +82,10 @@ export default function DebugPanel({
   };
 
   const handleAddTestTeams = async () => {
+    if (!isFinalLobby) {
+      showToast('Эта функция доступна только в лобби финала', 'warning');
+      return;
+    }
     setIsAddingTestTeams(true);
     try {
       const token = localStorage.getItem('token');
@@ -101,6 +107,29 @@ export default function DebugPanel({
       showToast('Ошибка: ' + error.message, 'error');
     } finally {
       setIsAddingTestTeams(false);
+    }
+  };
+
+  // ========== ПРИНУДИТЕЛЬНО НАЧАТЬ ФИНАЛ (для лобби) ==========
+  const handleForceGameStart = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3001/api/final/force-start', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Финал принудительно начат!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('Ошибка: ' + data.message, 'error');
+      }
+    } catch (error) {
+      showToast('Ошибка: ' + error.message, 'error');
     }
   };
 
@@ -126,8 +155,43 @@ export default function DebugPanel({
     }
   };
 
-  const handleForceEndGame = async () => {
-    if (!confirm('⚠️ Принудительно завершить игру? Все вопросы будут считаться использованными.')) return;
+  // ========== ПЕРЕДАТЬ ХОД СЛЕДУЮЩЕЙ КОМАНДЕ ==========
+  // ========== ПЕРЕДАТЬ ХОД СЛЕДУЮЩЕЙ КОМАНДЕ (ДЕБАГ) ==========
+const handleNextTurn = async () => {
+  setIsLoading(true);
+  try {
+    const token = localStorage.getItem('token');
+    console.log('🔄 Принудительная передача хода...');
+    
+    const response = await fetch('http://localhost:3001/api/final/debug-next-turn', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    console.log('📊 Ответ /debug-next-turn:', data);
+    
+    if (data.success) {
+      showToast(`Ход передан команде #${data.nextTeamId}`, 'success');
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      showToast('Ошибка: ' + (data.message || 'Не удалось передать ход'), 'error');
+    }
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    showToast('Ошибка: ' + error.message, 'error');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  // ========== ЗАВЕРШИТЬ ФИНАЛ ==========
+  const handleForceFinishFinal = async () => {
+    if (!confirm('⚠️ Принудительно завершить финал? Это действие нельзя отменить!')) return;
+    setIsLoading(true);
     
     try {
       const token = localStorage.getItem('token');
@@ -150,7 +214,7 @@ export default function DebugPanel({
       const endData = await endResponse.json();
       
       if (endData.success) {
-        showToast('Игра завершена!', 'success');
+        showToast('Финал завершён!', 'success');
         setTimeout(() => {
           window.location.href = `/final-results?results=${encodeURIComponent(JSON.stringify(resultsData.data || []))}`;
         }, 1500);
@@ -160,28 +224,8 @@ export default function DebugPanel({
     } catch (error) {
       console.error('❌ Ошибка:', error);
       showToast('Ошибка: ' + error.message, 'error');
-    }
-  };
-
-  const handleForceGameStart = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/final/force-start', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
-        showToast('Игра принудительно начата!', 'success');
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        showToast('Ошибка: ' + data.message, 'error');
-      }
-    } catch (error) {
-      showToast('Ошибка: ' + error.message, 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -271,24 +315,6 @@ export default function DebugPanel({
           </button>
 
           <button
-            onClick={handleAddTestTeams}
-            disabled={isAddingTestTeams}
-            style={{
-              background: 'linear-gradient(135deg, #1f2d3d, #162230)',
-              border: '2px solid #a855f7',
-              borderRadius: '6px',
-              color: '#a855f7',
-              padding: '8px 10px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              opacity: isAddingTestTeams ? 0.7 : 1
-            }}
-          >
-            {isAddingTestTeams ? '🔄 Добавление...' : '🤖 ДОБАВИТЬ ТЕСТОВЫЕ КОМАНДЫ'}
-          </button>
-
-          <button
             onClick={handleBecomeFinalist}
             disabled={isBecomingFinalist}
             style={{
@@ -306,119 +332,176 @@ export default function DebugPanel({
             {isBecomingFinalist ? '🔄 Обработка...' : '👑 СТАТЬ ФИНАЛИСТОМ'}
           </button>
 
-          <div style={{ fontSize: '10px', color: '#a855f7', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #2d3348' }}>
-            🎮 ФУНКЦИИ ФИНАЛА
-          </div>
+          {/* ========== КНОПКИ ДЛЯ ЛОББИ ФИНАЛА ========== */}
+          {isFinalLobby && !isFinalGame && (
+            <>
+              <div style={{ fontSize: '10px', color: '#a855f7', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #2d3348' }}>
+                🎮 ДЕБАГ ЛОББИ
+              </div>
 
-          <button
-            onClick={handleForceGameStart}
-            style={{
-              background: 'linear-gradient(135deg, #1f2d3d, #162230)',
-              border: '2px solid #10b981',
-              borderRadius: '6px',
-              color: '#10b981',
-              padding: '8px 10px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            🚀 ПРИНУДИТЕЛЬНО НАЧАТЬ ИГРУ
-          </button>
+              <button
+                onClick={handleAddTestTeams}
+                disabled={isAddingTestTeams}
+                style={{
+                  background: 'linear-gradient(135deg, #1f2d3d, #162230)',
+                  border: '2px solid #a855f7',
+                  borderRadius: '6px',
+                  color: '#a855f7',
+                  padding: '8px 10px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  opacity: isAddingTestTeams ? 0.7 : 1
+                }}
+              >
+                {isAddingTestTeams ? '🔄 Добавление...' : '🤖 ДОБАВИТЬ ТЕСТОВЫЕ КОМАНДЫ'}
+              </button>
 
-          <button
-            onClick={handleForceNextQuestion}
-            style={{
-              background: 'linear-gradient(135deg, #1f2d3d, #162230)',
-              border: '2px solid #3b82f6',
-              borderRadius: '6px',
-              color: '#3b82f6',
-              padding: '8px 10px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            ⏭ СЛЕДУЮЩИЙ ВОПРОС
-          </button>
-
-          <button
-            onClick={handleForceEndGame}
-            style={{
-              background: 'linear-gradient(135deg, #2d1f3d, #1f1f2d)',
-              border: '2px solid #ef4444',
-              borderRadius: '6px',
-              color: '#ef4444',
-              padding: '8px 10px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            🏁 ЗАВЕРШИТЬ ИГРУ
-          </button>
-
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              type="number"
-              value={pointsToAdd}
-              onChange={(e) => setPointsToAdd(parseInt(e.target.value) || 0)}
-              style={{
-                flex: 1,
-                background: '#1a1d2a',
-                border: '1px solid #3b82f6',
-                borderRadius: '4px',
-                padding: '6px',
-                color: 'white',
-                fontSize: '12px',
-                textAlign: 'center'
-              }}
-              placeholder="Баллы"
-            />
-            <button
-              onClick={handleAddPoints}
-              style={{
-                flex: 2,
-                background: 'linear-gradient(135deg, #1f2d3d, #162230)',
-                border: '2px solid #f0c564',
-                borderRadius: '6px',
-                color: '#f0c564',
-                padding: '8px 10px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              💰 ДОБАВИТЬ БАЛЛЫ
-            </button>
-          </div>
-
-          {onResetProgress && (
-            <button onClick={onResetProgress} style={{
-              background: '#2d1f1f',
-              border: '1px solid #ef4444',
-              borderRadius: '6px',
-              color: '#ef4444',
-              padding: '6px 10px',
-              fontSize: '11px',
-              cursor: 'pointer'
-            }}>
-              🔄 Сбросить прогресс викторины
-            </button>
+              <button
+                onClick={handleForceGameStart}
+                style={{
+                  background: 'linear-gradient(135deg, #1f2d3d, #162230)',
+                  border: '2px solid #10b981',
+                  borderRadius: '6px',
+                  color: '#10b981',
+                  padding: '8px 10px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                🚀 ПРИНУДИТЕЛЬНО НАЧАТЬ ФИНАЛ
+              </button>
+            </>
           )}
 
-          {onPerfectPass && (
-            <button onClick={onPerfectPass} style={{
-              background: '#1f2d3d',
-              border: '1px solid #10b981',
-              borderRadius: '6px',
-              color: '#10b981',
-              padding: '6px 10px',
-              fontSize: '11px',
-              cursor: 'pointer'
-            }}>
-              ⭐ ПРОЙТИ ТУР ИДЕАЛЬНО
-            </button>
+          {/* ========== КНОПКИ ДЛЯ ФИНАЛА ========== */}
+          {isFinalGame && (
+            <>
+              <div style={{ fontSize: '10px', color: '#f0c564', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #2d3348' }}>
+                🎮 ДЕБАГ ФИНАЛА
+              </div>
+
+              <button
+                onClick={handleNextTurn}
+                disabled={isLoading}
+                style={{
+                  background: 'linear-gradient(135deg, #1f2d3d, #162230)',
+                  border: '2px solid #f0c564',
+                  borderRadius: '6px',
+                  color: '#f0c564',
+                  padding: '8px 10px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  opacity: isLoading ? 0.7 : 1
+                }}
+              >
+                {isLoading ? '🔄 Обработка...' : '🔄 ПЕРЕДАТЬ ХОД СЛЕДУЮЩЕЙ КОМАНДЕ'}
+              </button>
+
+              <button
+                onClick={handleForceFinishFinal}
+                disabled={isLoading}
+                style={{
+                  background: 'linear-gradient(135deg, #2d1f3d, #1f1f2d)',
+                  border: '2px solid #ef4444',
+                  borderRadius: '6px',
+                  color: '#ef4444',
+                  padding: '8px 10px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  opacity: isLoading ? 0.7 : 1
+                }}
+              >
+                {isLoading ? '🔄 Завершение...' : '🏁 ЗАВЕРШИТЬ ФИНАЛ'}
+              </button>
+
+              <button
+                onClick={handleForceNextQuestion}
+                style={{
+                  background: 'linear-gradient(135deg, #1f2d3d, #162230)',
+                  border: '2px solid #3b82f6',
+                  borderRadius: '6px',
+                  color: '#3b82f6',
+                  padding: '8px 10px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                ⏭ СЛЕДУЮЩИЙ ВОПРОС
+              </button>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="number"
+                  value={pointsToAdd}
+                  onChange={(e) => setPointsToAdd(parseInt(e.target.value) || 0)}
+                  style={{
+                    flex: 1,
+                    background: '#1a1d2a',
+                    border: '1px solid #f0c564',
+                    borderRadius: '4px',
+                    padding: '6px',
+                    color: 'white',
+                    fontSize: '12px',
+                    textAlign: 'center'
+                  }}
+                  placeholder="Баллы"
+                />
+                <button
+                  onClick={handleAddPoints}
+                  style={{
+                    flex: 2,
+                    background: 'linear-gradient(135deg, #1f2d3d, #162230)',
+                    border: '2px solid #f0c564',
+                    borderRadius: '6px',
+                    color: '#f0c564',
+                    padding: '8px 10px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  💰 ДОБАВИТЬ БАЛЛЫ
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ========== ОБЫЧНЫЕ ФУНКЦИИ (для квалификации) ========== */}
+          {!isFinalGame && !isFinalLobby && (
+            <>
+              {onResetProgress && (
+                <button onClick={onResetProgress} style={{
+                  background: '#2d1f1f',
+                  border: '1px solid #ef4444',
+                  borderRadius: '6px',
+                  color: '#ef4444',
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}>
+                  🔄 Сбросить прогресс викторины
+                </button>
+              )}
+
+              {onPerfectPass && (
+                <button onClick={onPerfectPass} style={{
+                  background: '#1f2d3d',
+                  border: '1px solid #10b981',
+                  borderRadius: '6px',
+                  color: '#10b981',
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}>
+                  ⭐ ПРОЙТИ ТУР ИДЕАЛЬНО
+                </button>
+              )}
+            </>
           )}
 
           <button

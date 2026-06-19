@@ -726,7 +726,7 @@ export default function Final() {
         </div>
       </div>
       
-      <DebugPanel />
+      <DebugPanel isFinalGame={true} />
     </div>
   );
 }
