@@ -1,3 +1,5 @@
+// backend/src/routes/teamRoutes.js
+
 const express = require('express');
 const router = express.Router();
 const Team = require('../models/Team');
@@ -34,25 +36,46 @@ router.post('/create', verifyToken, async (req, res) => {
     }
 });
 
-// Получение информации о команде
+// Получение информации о команде (ИСПРАВЛЕНО)
 router.get('/:teamId', verifyToken, async (req, res) => {
     try {
-        const team = await Team.getTeamWithMembers(req.params.teamId);
-        if (!team) {
-            return res.status(404).json({ success: false, message: 'Команда не найдена' });
+        const teamId = parseInt(req.params.teamId);
+        
+        // Проверяем существование команды
+        const teamExists = await query('SELECT id FROM teams WHERE id = ?', [teamId]);
+        if (teamExists.length === 0) {
+            console.log('❌ Команда не найдена:', teamId);
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Команда не найдена' 
+            });
         }
         
-        res.json({ success: true, data: {
-            id: team.id,
-            name: team.name,
-            captainId: team.captain_id,
-            qualifyingScore: team.qualifying_score || 0,
-            is_finalist: team.is_finalist === 1,
-            members: team.members || []
-        } });
+        const team = await Team.getTeamWithMembers(teamId);
+        if (!team) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Команда не найдена' 
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            data: {
+                id: team.id,
+                name: team.name,
+                captainId: team.captain_id,
+                qualifyingScore: team.qualifying_score || 0,
+                is_finalist: team.is_finalist === 1,
+                members: team.members || []
+            } 
+        });
     } catch (error) {
         console.error('❌ Ошибка загрузки команды:', error);
-        res.status(500).json({ success: false, message: 'Ошибка загрузки' });
+        res.status(500).json({ 
+            success: false, 
+            message: 'Ошибка загрузки команды: ' + error.message 
+        });
     }
 });
 
@@ -61,6 +84,15 @@ router.get('/:teamId/finalist-status', verifyToken, async (req, res) => {
     try {
         const { teamId } = req.params;
         const userId = req.user.id;
+        
+        // Проверяем, существует ли команда
+        const teamExists = await query('SELECT id FROM teams WHERE id = ?', [teamId]);
+        if (teamExists.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Команда не найдена' 
+            });
+        }
         
         const userTeam = await query('SELECT team_id FROM users WHERE id = ?', [userId]);
         
@@ -100,6 +132,12 @@ router.get('/:teamId/finalist-status', verifyToken, async (req, res) => {
 router.post('/update-score', verifyToken, async (req, res) => {
     try {
         const { teamId, score } = req.body;
+        
+        const teamExists = await query('SELECT id FROM teams WHERE id = ?', [teamId]);
+        if (teamExists.length === 0) {
+            return res.status(404).json({ success: false, message: 'Команда не найдена' });
+        }
+        
         await query('UPDATE teams SET qualifying_score = ? WHERE id = ?', [score, teamId]);
         res.json({ success: true });
     } catch (error) {

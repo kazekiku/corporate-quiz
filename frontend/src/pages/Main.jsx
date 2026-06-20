@@ -6,7 +6,6 @@ import { getTeam, getTeamFinalistStatus } from '../api/client';
 import Modal from '../components/Modal';
 import DebugPanel from '../components/DebugPanel';
 
-// SVG иконки
 const TrophyIcon = () => (
   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#f0c564" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
@@ -34,6 +33,9 @@ export default function Main() {
   const [showTourModal, setShowTourModal] = useState(false);
   const [selectedMode, setSelectedMode] = useState('qualification');
   const [error, setError] = useState('');
+  const [teamDeleted, setTeamDeleted] = useState(false);
+
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     const loadData = async () => {
@@ -45,23 +47,70 @@ export default function Main() {
       setIsLoading(true);
       
       try {
+        // Если есть teamId, пробуем загрузить команду
         if (user.teamId) {
-          const teamRes = await getTeam(user.teamId);
-          console.log('📋 Загружен отдел:', teamRes.data);
-          
-          if (teamRes.data?.data) {
-            setTeam(teamRes.data.data);
+          try {
+            const teamRes = await getTeam(user.teamId);
+            console.log('📋 Загружен отдел:', teamRes.data);
             
-            if (teamRes.data.data.is_finalist) {
-              setIsFinalist(true);
+            if (teamRes.data?.data) {
+              setTeam(teamRes.data.data);
+              setTeamDeleted(false);
+              
+              if (teamRes.data.data.is_finalist) {
+                setIsFinalist(true);
+              }
+            } else {
+              // Команда не найдена → удаляем данные
+              console.warn('⚠️ Команда не найдена, очищаем данные');
+              setTeamDeleted(true);
+              setTeam(null);
+              // Очищаем localStorage
+              localStorage.removeItem('teamId');
+              localStorage.removeItem('teamName');
+              // Обновляем пользователя в localStorage
+              const userData = { ...user, teamId: null, teamName: null };
+              localStorage.setItem('user', JSON.stringify(userData));
+              if (setUser) setUser(userData);
+              
+              showToast('Ваш отдел был удалён администратором. Пожалуйста, зарегистрируйтесь заново.', 'warning');
+              // Перенаправляем на регистрацию через 3 секунды
+              setTimeout(() => {
+                navigate('/');
+              }, 3000);
+              return;
             }
+          } catch (err) {
+            if (err.response?.status === 404) {
+              // Команда не найдена
+              console.warn('⚠️ Команда не найдена (404)');
+              setTeamDeleted(true);
+              setTeam(null);
+              localStorage.removeItem('teamId');
+              localStorage.removeItem('teamName');
+              const userData = { ...user, teamId: null, teamName: null };
+              localStorage.setItem('user', JSON.stringify(userData));
+              if (setUser) setUser(userData);
+              
+              showToast('Ваш отдел был удалён. Перенаправление на регистрацию...', 'warning');
+              setTimeout(() => {
+                navigate('/');
+              }, 3000);
+              return;
+            }
+            throw err;
           }
         }
         
+        // Проверяем статус финалиста (если есть teamId)
         if (user.teamId) {
-          const statusRes = await getTeamFinalistStatus(user.teamId);
-          if (statusRes.data?.data?.isFinalist) {
-            setIsFinalist(true);
+          try {
+            const statusRes = await getTeamFinalistStatus(user.teamId);
+            if (statusRes.data?.data?.isFinalist) {
+              setIsFinalist(true);
+            }
+          } catch (err) {
+            console.warn('⚠️ Ошибка получения статуса финалиста:', err);
           }
         }
         
@@ -110,6 +159,39 @@ export default function Main() {
     }
   };
 
+  // Если команда удалена — показываем сообщение
+  if (teamDeleted) {
+    return (
+      <div className="auth-layout">
+        <div className="container-narrow">
+          <div className="card text-center" style={{ padding: '40px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🗑️</div>
+            <h2>Отдел удалён</h2>
+            <p className="text-muted" style={{ marginTop: '8px' }}>
+              Ваш отдел был удалён администратором.
+              <br />
+              Перенаправление на страницу регистрации...
+            </p>
+            <div className="loading-spinner" style={{ marginTop: '24px' }}>
+              <div className="loading-dot" />
+              <div className="loading-dot" />
+              <div className="loading-dot" />
+            </div>
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                navigate('/');
+              }} 
+              className="btn btn-primary mt-4"
+            >
+              Перейти на регистрацию сейчас
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading || isLoading) {
     return (
       <div className="auth-layout">
@@ -137,8 +219,11 @@ export default function Main() {
       <div className="auth-layout">
         <div className="container-narrow">
           <div className="card text-center">
-            <p>Отдел не найден</p>
-            <button onClick={() => navigate('/')} className="btn btn-primary mt-4">
+            <p>❌ Отдел не найден</p>
+            <button onClick={() => {
+              localStorage.clear();
+              navigate('/');
+            }} className="btn btn-primary mt-4">
               На регистрацию
             </button>
           </div>
@@ -182,7 +267,7 @@ export default function Main() {
             <div className="team-status-card">
               <div className="battle-status-pill" style={{ color: statusColor }}>
                 {statusText}
-                {isFinalist && <StarIcon />}
+                {(isFinalist || team.is_finalist) && <StarIcon />}
               </div>
               <div className="team-name">{team.name}</div>
             </div>
@@ -200,8 +285,19 @@ export default function Main() {
               <button onClick={logout} className="battle-secondary-btn">
                 Выйти
               </button>
+              {isAdmin && (
+                <button 
+                  onClick={() => navigate('/admin')} 
+                  className="battle-secondary-btn"
+                  style={{ borderColor: '#f0c564', color: '#f0c564' }}
+                >
+                  ⚙️ АДМИН-ПАНЕЛЬ
+                </button>
+              )}
             </div>
           </div>
+
+          
         </div>
       </div>
 
@@ -227,9 +323,9 @@ export default function Main() {
             <div className="tour-rules">
               <h4>ПРАВИЛА</h4>
               <ul>
-                <li>25 вопросов</li>
+                <li>5 вопросов</li>
                 <li>10 баллов за ответ</li>
-                <li>30 секунд на вопрос</li>
+                <li>10 минут на вопрос</li>
                 <li>Топ-3 в финал</li>
               </ul>
             </div>
@@ -248,7 +344,7 @@ export default function Main() {
             <div className="tour-rules">
               <h4>ПРАВИЛА</h4>
               <ul>
-                <li>25 вопросов (5×5)</li>
+                <li>5 вопросов (5×5)</li>
                 <li>100-500 баллов</li>
                 <li>Ходы по очереди</li>
                 <li>Финальный раунд</li>

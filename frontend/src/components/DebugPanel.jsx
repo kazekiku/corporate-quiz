@@ -54,8 +54,9 @@ export default function DebugPanel({
     }
   };
 
+  // ========== ОЧИСТКА БД С СОХРАНЕНИЕМ АДМИНА ==========
   const handleClearDatabase = async () => {
-    if (!confirm('⚠️ Полностью очистить базу данных? Это НЕОБРАТИМО!')) return;
+    if (!confirm('⚠️ Полностью очистить базу данных? Админ будет сохранён!')) return;
     setIsClearingDB(true);
     try {
       const token = localStorage.getItem('token');
@@ -68,8 +69,10 @@ export default function DebugPanel({
       });
       const data = await response.json();
       if (data.success) {
-        showToast('База данных очищена!', 'success');
+        showToast('База данных очищена! Админ сохранён.', 'success');
         localStorage.clear();
+        // Сохраняем только админа в localStorage
+        localStorage.setItem('admin_email', 'admin@quiz.local');
         setTimeout(() => window.location.href = '/', 1500);
       } else {
         showToast('Ошибка: ' + data.message, 'error');
@@ -155,38 +158,37 @@ export default function DebugPanel({
     }
   };
 
-  // ========== ПЕРЕДАТЬ ХОД СЛЕДУЮЩЕЙ КОМАНДЕ ==========
   // ========== ПЕРЕДАТЬ ХОД СЛЕДУЮЩЕЙ КОМАНДЕ (ДЕБАГ) ==========
-const handleNextTurn = async () => {
-  setIsLoading(true);
-  try {
-    const token = localStorage.getItem('token');
-    console.log('🔄 Принудительная передача хода...');
-    
-    const response = await fetch('http://localhost:3001/api/final/debug-next-turn', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+  const handleNextTurn = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      console.log('🔄 Принудительная передача хода...');
+      
+      const response = await fetch('http://localhost:3001/api/final/debug-next-turn', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      console.log('📊 Ответ /debug-next-turn:', data);
+      
+      if (data.success) {
+        showToast(`Ход передан команде #${data.nextTeamId}`, 'success');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('Ошибка: ' + (data.message || 'Не удалось передать ход'), 'error');
       }
-    });
-    
-    const data = await response.json();
-    console.log('📊 Ответ /debug-next-turn:', data);
-    
-    if (data.success) {
-      showToast(`Ход передан команде #${data.nextTeamId}`, 'success');
-      setTimeout(() => window.location.reload(), 1500);
-    } else {
-      showToast('Ошибка: ' + (data.message || 'Не удалось передать ход'), 'error');
+    } catch (error) {
+      console.error('❌ Ошибка:', error);
+      showToast('Ошибка: ' + error.message, 'error');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('❌ Ошибка:', error);
-    showToast('Ошибка: ' + error.message, 'error');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   // ========== ЗАВЕРШИТЬ ФИНАЛ ==========
   const handleForceFinishFinal = async () => {

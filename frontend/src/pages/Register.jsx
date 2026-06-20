@@ -1,77 +1,112 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { register, getMe } from '../api/client';
 import { useToast } from '../hooks/useToast';
-
-// SVG иконка для регистрации
-const BuildingIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
-    <line x1="9" y1="22" x2="9" y2="18" />
-    <line x1="15" y1="22" x2="15" y2="18" />
-    <line x1="8" y1="6" x2="16" y2="6" />
-    <line x1="8" y1="10" x2="16" y2="10" />
-    <line x1="8" y1="14" x2="16" y2="14" />
-  </svg>
-);
+import { registerTeam, loginByCode, adminLogin } from '../api/client';
 
 export default function Register() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [teamName, setTeamName] = useState('');
+  const [mode, setMode] = useState('register');
   const [loading, setLoading] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [captainName, setCaptainName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
 
   useEffect(() => {
-    const checkSession = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const res = await getMe();
-          if (res.data?.data) {
-            navigate('/main');
-          }
-        } catch (err) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        }
+    const token = localStorage.getItem('token');
+    if (token) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/main');
       }
-    };
-    checkSession();
+    }
   }, [navigate]);
 
-  const handleSubmit = async (e) => {
+  // ========== РЕГИСТРАЦИЯ ПО КОДУ ==========
+  const handleRegister = async (e) => {
     e.preventDefault();
     
-    if (!teamName.trim()) {
-      showToast('Введите название отдела', 'warning');
+    if (!accessCode.trim()) {
+      showToast('Введите код доступа', 'warning');
       return;
     }
-    
-    if (teamName.length > 50) {
-      showToast('Название отдела не может превышать 50 символов', 'warning');
+    if (!captainName.trim()) {
+      showToast('Введите имя капитана', 'warning');
       return;
     }
     
     setLoading(true);
     try {
-      const res = await register({ teamName });
+      const res = await registerTeam({
+        accessCode: accessCode.toUpperCase().trim(),
+        captainName: captainName.trim()
+      });
       
       if (res.data.token) {
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
+        showToast('Регистрация успешна!', 'success');
+        navigate('/intro-video');
       }
-      
-      if (res.data.data?.teamId) {
-        localStorage.setItem('teamId', res.data.data.teamId.toString());
-        localStorage.setItem('teamName', res.data.data.teamName);
-      }
-      
-      showToast('Отдел успешно создан!', 'success');
-      navigate('/main');
-      
     } catch (err) {
       console.error('Ошибка регистрации:', err);
-      showToast(err.response?.data?.message || 'Ошибка при создании отдела', 'error');
+      showToast(err.response?.data?.message || 'Ошибка регистрации', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========== ВХОД ПО КОДУ ==========
+  const handleLoginByCode = async (e) => {
+    e.preventDefault();
+    
+    if (!accessCode.trim()) {
+      showToast('Введите код доступа', 'warning');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await loginByCode(accessCode.toUpperCase().trim());
+      
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        showToast('Добро пожаловать!', 'success');
+        navigate('/main');
+      }
+    } catch (err) {
+      console.error('Ошибка входа:', err);
+      showToast(err.response?.data?.message || 'Неверный код доступа', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========== АДМИН-ВХОД ==========
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    
+    if (!adminEmail.trim()) {
+      showToast('Введите email администратора', 'warning');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await adminLogin(adminEmail.trim());
+      
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        showToast('Добро пожаловать в админ-панель!', 'success');
+        navigate('/admin');
+      }
+    } catch (err) {
+      console.error('Ошибка админ-входа:', err);
+      showToast(err.response?.data?.message || 'Ошибка входа', 'error');
     } finally {
       setLoading(false);
     }
@@ -81,32 +116,212 @@ export default function Register() {
     <div className="register-page">
       <div className="register-card">
         <div className="register-header">
-          <div className="register-icon">
-            <BuildingIcon />
-          </div>
+          <div className="register-icon">🔑</div>
           <div>
-            <h1>Корпоративные бои</h1>
-            <p>Создайте свой отдел</p>
+            <h1>
+              {mode === 'register' ? 'Регистрация' : 
+               mode === 'login' ? 'Вход по коду' : 
+               'Админ-панель'}
+            </h1>
+            <p>
+              {mode === 'register' && 'Введите код доступа и имя капитана'}
+              {mode === 'login' && 'Введите код доступа'}
+              {mode === 'admin' && 'Вход для администратора'}
+            </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="register-group">
-            <label>НАЗВАНИЕ ОТДЕЛА</label>
-            <input
-              type="text"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Например: IT-отдел, Бухгалтерия, Маркетинг..."
-              disabled={loading}
-              autoFocus
-            />
-          </div>
+        {/* ===== РЕГИСТРАЦИЯ ===== */}
+        {mode === 'register' && (
+          <form onSubmit={handleRegister}>
+            <div style={{ 
+              background: 'rgba(240,197,100,0.1)', 
+              border: '1px solid rgba(240,197,100,0.2)',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              color: 'rgba(255,255,255,0.6)'
+            }}>
+              💡 Код доступа вы получили при регистрации команды
+            </div>
 
-          <button type="submit" disabled={loading} className="register-btn">
-            {loading ? 'Создание...' : 'СОЗДАТЬ ОТДЕЛ'}
-          </button>
-        </form>
+            <div className="register-group">
+              <label>КОД ДОСТУПА</label>
+              <input
+                type="text"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                placeholder="Например: ABC123"
+                disabled={loading}
+                autoFocus
+                style={{ textTransform: 'uppercase', letterSpacing: '2px' }}
+              />
+            </div>
+
+            <div className="register-group">
+              <label>ИМЯ КАПИТАНА</label>
+              <input
+                type="text"
+                value={captainName}
+                onChange={(e) => setCaptainName(e.target.value)}
+                placeholder="Введите ваше имя"
+                disabled={loading}
+              />
+            </div>
+
+            <button type="submit" disabled={loading} className="register-btn">
+              {loading ? 'Регистрация...' : 'ЗАРЕГИСТРИРОВАТЬСЯ'}
+            </button>
+
+            <div style={{ marginTop: '16px', textAlign: 'center', display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline'
+                }}
+              >
+                Уже есть аккаунт? Войти
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('admin')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#f0c564',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline'
+                }}
+              >
+                Админ-вход
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ===== ВХОД ПО КОДУ ===== */}
+        {mode === 'login' && (
+          <form onSubmit={handleLoginByCode}>
+            <div className="register-group">
+              <label>КОД ДОСТУПА</label>
+              <input
+                type="text"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                placeholder="Введите код доступа"
+                disabled={loading}
+                autoFocus
+                style={{ textTransform: 'uppercase', letterSpacing: '2px' }}
+              />
+            </div>
+
+            <button type="submit" disabled={loading} className="register-btn">
+              {loading ? 'Вход...' : 'ВОЙТИ ПО КОДУ'}
+            </button>
+
+            <div style={{ marginTop: '16px', textAlign: 'center', display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setMode('register')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline'
+                }}
+              >
+                Нет аккаунта? Регистрация
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('admin')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#f0c564',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline'
+                }}
+              >
+                Админ-вход
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ===== АДМИН-ВХОД ===== */}
+        {mode === 'admin' && (
+          <form onSubmit={handleAdminLogin}>
+            <div style={{ 
+              background: 'rgba(240,197,100,0.1)', 
+              border: '1px solid rgba(240,197,100,0.3)',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              color: '#f0c564'
+            }}>
+              🔐 Вход для администратора
+            </div>
+
+            <div className="register-group">
+              <label>EMAIL АДМИНИСТРАТОРА</label>
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="admin@quiz.local"
+                disabled={loading}
+              />
+            </div>
+
+            <button type="submit" disabled={loading} className="register-btn" style={{ background: 'linear-gradient(180deg, #2f67d8 0%, #2357c6 100%)' }}>
+              {loading ? 'Вход...' : '🔑 ВОЙТИ КАК АДМИН'}
+            </button>
+
+            <div style={{ marginTop: '16px', textAlign: 'center', display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setMode('register')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline'
+                }}
+              >
+                Регистрация
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  textDecoration: 'underline'
+                }}
+              >
+                Вход по коду
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

@@ -11,10 +11,14 @@ import Rating from './pages/Rating';
 import FinalLobby from './pages/FinalLobby';
 import Final from './pages/Final';
 import FinalResults from './pages/FinalResults';
+import IntroVideo from './pages/IntroVideo';
+import BetweenToursVideo from './pages/BetweenToursVideo';
+import FinalVideo from './pages/FinalVideo';
+import AdminPanel from './pages/AdminPanel';
 import { useAuth } from './hooks/useAuth';
 import { useToast } from './hooks/useToast';
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, requireAdmin = false }) {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -38,6 +42,10 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/" replace />;
   }
   
+  if (requireAdmin && user.role !== 'admin') {
+    return <Navigate to="/main" replace />;
+  }
+  
   return children;
 }
 
@@ -56,44 +64,76 @@ function App() {
       {ToastContainer()}
       <Routes>
         <Route path="/" element={<Register />} />
+        
+        <Route path="/intro-video" element={
+          <ProtectedRoute>
+            <IntroVideo />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/between-tours-video" element={
+          <ProtectedRoute>
+            <BetweenToursVideo />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/final-video" element={
+          <ProtectedRoute>
+            <FinalVideo />
+          </ProtectedRoute>
+        } />
+        
         <Route path="/main" element={
           <ProtectedRoute>
             <Main />
           </ProtectedRoute>
         } />
+        
         <Route path="/lobby/:teamId" element={
           <ProtectedRoute>
             <Lobby />
           </ProtectedRoute>
         } />
+        
         <Route path="/qualification/:teamId" element={
           <ProtectedRoute>
             <Qualification />
           </ProtectedRoute>
         } />
+        
         <Route path="/qualification-results/:teamId" element={
           <ProtectedRoute>
             <QualificationResults />
           </ProtectedRoute>
         } />
+        
         <Route path="/rating" element={
           <ProtectedRoute>
             <Rating />
           </ProtectedRoute>
         } />
+        
         <Route path="/final-lobby" element={
           <ProtectedRoute>
             <FinalLobby />
           </ProtectedRoute>
         } />
+        
         <Route path="/final" element={
           <ProtectedRoute>
             <Final />
           </ProtectedRoute>
         } />
+        
         <Route path="/final-results" element={
           <ProtectedRoute>
             <FinalResults />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin" element={
+          <ProtectedRoute requireAdmin={true}>
+            <AdminPanel />
           </ProtectedRoute>
         } />
       </Routes>

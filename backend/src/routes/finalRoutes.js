@@ -1,3 +1,5 @@
+// backend/src/routes/finalRoutes.js
+
 const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
@@ -195,11 +197,9 @@ async function calculateResults(lobbyId, questionId) {
   
   results.sort((a, b) => b.points - a.points);
   
-  // ========== НОВАЯ ЛОГИКА "СВОЕЙ ИГРЫ" ==========
   let nextTurnTeamId = null;
   let turnReason = '';
   
-  // 1. Если есть правильно ответившие — продолжает та, что набрала больше всех очков
   if (correctTeamIds.length > 0) {
     const correctResults = results.filter(r => r.is_correct);
     const winner = correctResults.reduce((a, b) => a.points > b.points ? a : b);
@@ -207,13 +207,11 @@ async function calculateResults(lobbyId, questionId) {
     turnReason = `✅ ${winner.team_name} ответил правильно и продолжает`;
     console.log(`🏆 Продолжает: ${winner.team_name} с ${winner.points} очками`);
   } else {
-    // ========== НИКТО НЕ ОТВЕТИЛ ПРАВИЛЬНО → ХОД ОСТАЁТСЯ У ТОЙ ЖЕ КОМАНДЫ ==========
     nextTurnTeamId = currentTeamId;
     turnReason = `❌ Никто не ответил правильно → ход остаётся у команды ${currentTeamId}`;
     console.log(`🔄 Никто не ответил, ход остаётся у команды ${currentTeamId}`);
   }
   
-  // ========== ПРОВЕРЯЕМ, ОСТАЛИСЬ ЛИ ВОПРОСЫ ==========
   const usedQuestions = await query('SELECT COUNT(*) as count FROM final_used_questions WHERE lobby_id = ?', [lobbyId]);
   const totalQuestions = await query('SELECT COUNT(*) as count FROM final_questions');
   const allQuestionsUsed = usedQuestions[0].count >= totalQuestions[0].count;
@@ -221,7 +219,6 @@ async function calculateResults(lobbyId, questionId) {
   console.log(`📊 Использовано вопросов: ${usedQuestions[0].count} из ${totalQuestions[0].count}`);
   console.log(`🏁 Все вопросы использованы: ${allQuestionsUsed}`);
   
-  // ========== ЕСЛИ ВСЕ ВОПРОСЫ ИСПОЛЬЗОВАНЫ — ЗАВЕРШАЕМ ИГРУ ==========
   let gameFinished = false;
   let gameResults = null;
   
@@ -339,6 +336,11 @@ router.post('/add-test-teams', verifyToken, async (req, res) => {
   try {
     console.log('🧪 /add-test-teams START');
     
+    const user = await query('SELECT role FROM users WHERE id = ?', [req.user.id]);
+    if (user[0]?.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Только администратор может добавлять тестовые команды' });
+    }
+    
     const lobby = await query('SELECT id FROM final_lobbies WHERE session_id = ?', ['FINAL']);
     if (lobby.length === 0) {
       return res.status(404).json({ success: false, message: 'Лобби не найдено' });
@@ -351,22 +353,101 @@ router.post('/add-test-teams', verifyToken, async (req, res) => {
     
     console.log('🧪 Нужно добавить команд:', neededCount);
     
+    if (neededCount === 0) {
+      return res.json({ 
+        success: true, 
+        message: 'Уже есть 3 команды', 
+        addedCount: 0,
+        totalCount: currentCount 
+      });
+    }
+    
     let addedCount = 0;
-    for (let i = 1; i <= neededCount; i++) {
-      const teamName = `Тестовая команда ${currentCount + i}`;
+    const testTeamNames = ['Тестовая команда A', 'Тестовая команда B', 'Тестовая команда C'];
+    
+    for (let i = 0; i < neededCount; i++) {
+      const teamName = testTeamNames[currentCount + i] || `Тестовая команда ${currentCount + i + 1}`;
+      
+      const testAccessCode = `TEST${String(Math.random().toString(36).substring(2, 5).toUpperCase())}`;
+      let teamId;
+      
+      const existingTeam = await query('SELECT id FROM teams WHERE name = ?', [teamName]);
+      if (existingTeam.length > 0) {
+        teamId = existingTeam[0].id;
+      } else {
+        const teamResult = await query(
+          'INSERT INTO teams (name, access_code, is_activated) VALUES (?, ?, ?)',
+          [teamName, testAccessCode, true]
+        );
+        teamId = teamResult.insertId;
+        console.log(`✅ Создана тестовая команда: ${teamName} (ID: ${teamId})`);
+      }
+      
       const result = await query(
         'INSERT INTO final_teams (lobby_id, name, score) VALUES (?, ?, ?)',
         [lobbyId, teamName, 0]
       );
+      const finalTeamId = result.insertId;
+      console.log(`✅ Команда добавлена в финал: ${teamName} (final_team_id: ${finalTeamId})`);
+      
+      const testEmail = `test_${teamName.replace(/\s/g, '_')}_${Date.now()}@quiz.local`;
+      const testUserName = `Тестовый игрок ${teamName}`;
+      
+      let userId;
+      const existingUser = await query('SELECT id FROM users WHERE email = ?', [testEmail]);
+      if (existingUser.length > 0) {
+        userId = existingUser[0].id;
+      } else {
+        const userResult = await query(
+          'INSERT INTO users (team_id, full_name, email, role, is_finalist) VALUES (?, ?, ?, ?, ?)',
+          [teamId, testUserName, testEmail, 'member', true]
+        );
+        userId = userResult.insertId;
+        console.log(`✅ Создан тестовый пользователь: ${testUserName} (ID: ${userId})`);
+      }
+      
       await query(
         'INSERT INTO final_participants (lobby_id, team_id, user_id, is_ready) VALUES (?, ?, ?, ?)',
-        [lobbyId, result.insertId, 999999 + i, true]
+        [lobbyId, finalTeamId, userId, true]
       );
+      console.log(`✅ Участник добавлен в финал (готов): ${testUserName}`);
+      
       addedCount++;
-      console.log('🧪 Добавлена команда:', teamName);
     }
     
-    res.json({ success: true, addedCount, totalCount: currentCount + addedCount });
+    const allTeams = await query(`
+      SELECT ft.id, ft.name, 
+             GROUP_CONCAT(fp.is_ready) as ready_status
+      FROM final_teams ft
+      LEFT JOIN final_participants fp ON ft.id = fp.team_id
+      WHERE ft.lobby_id = ?
+      GROUP BY ft.id
+    `, [lobbyId]);
+    
+    const allReady = allTeams.length === 3 && allTeams.every(t => {
+      const statuses = t.ready_status ? t.ready_status.split(',').map(s => s === '1') : [];
+      return statuses.every(r => r === true);
+    });
+    
+    console.log(`🧪 Всего команд в финале: ${allTeams.length}, все готовы: ${allReady}`);
+    
+    if (allReady && allTeams.length === 3) {
+      await query('UPDATE final_lobbies SET game_started = TRUE WHERE id = ?', [lobbyId]);
+      
+      const teamIds = allTeams.map(t => t.id);
+      const randomIndex = Math.floor(Math.random() * teamIds.length);
+      await query('UPDATE final_lobbies SET current_turn_team_id = ? WHERE id = ?', [teamIds[randomIndex], lobbyId]);
+      
+      console.log(`🎮 Финал автоматически запущен!`);
+    }
+    
+    res.json({ 
+      success: true, 
+      addedCount, 
+      totalCount: currentCount + addedCount,
+      allReady: allReady,
+      message: allReady ? '✅ Все команды готовы! Финал запущен!' : `Добавлено ${addedCount} команд (${currentCount + addedCount}/3)`
+    });
   } catch (error) {
     console.error('❌ Ошибка в /add-test-teams:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -392,11 +473,9 @@ router.get('/board', verifyToken, async (req, res) => {
     const formattedTeams = await getTeamsWithParticipants(lobbyId);
     
     const categories = [
-      { id: 1, name: "Железо внутри", questions: [] },
-      { id: 2, name: "Логика и таблицы истинности", questions: [] },
-      { id: 3, name: "Сетевые технологии", questions: [] },
-      { id: 4, name: "Офисный арсенал", questions: [] },
-      { id: 5, name: "Игровой мир IT", questions: [] }
+      { id: 1, name: "Кодировка Фано", questions: [] },
+      { id: 2, name: "Количество информации", questions: [] },
+      { id: 3, name: "Комбинаторика", questions: [] }
     ];
     
     const questions = await query('SELECT * FROM final_questions');
@@ -507,13 +586,30 @@ router.get('/board', verifyToken, async (req, res) => {
     let showResults = false;
     let results = null;
     
-    if (lobby.current_results && lobby.results_shown === 0) {
+    // ============================================================
+    // БЕЗОПАСНЫЙ ПАРСИНГ JSON
+    // ============================================================
+    if (lobby.current_results) {
       try {
-        results = JSON.parse(lobby.current_results);
-        showResults = true;
-        console.log('📊 ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ:', results);
+        if (typeof lobby.current_results === 'string') {
+          results = JSON.parse(lobby.current_results);
+          showResults = lobby.results_shown === 0;
+          console.log('📊 ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ:', results);
+        } else if (typeof lobby.current_results === 'object') {
+          results = lobby.current_results;
+          showResults = lobby.results_shown === 0;
+          console.log('📊 ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ (объект):', results);
+        } else {
+          console.warn('⚠️ current_results имеет неподдерживаемый тип:', typeof lobby.current_results);
+          await query('UPDATE final_lobbies SET current_results = NULL WHERE id = ?', [lobbyId]);
+        }
       } catch (e) {
         console.error('❌ Ошибка парсинга результатов:', e);
+        console.log('📄 current_results значение:', lobby.current_results);
+        // Очищаем некорректные данные
+        await query('UPDATE final_lobbies SET current_results = NULL, results_shown = 0 WHERE id = ?', [lobbyId]);
+        showResults = false;
+        results = null;
       }
     }
     
@@ -590,7 +686,7 @@ router.post('/pick', verifyToken, async (req, res) => {
     await query('DELETE FROM final_answers WHERE lobby_id = ?', [lobbyId]);
     console.log('🧹 Очищены старые ответы для лобби', lobbyId);
     
-    const categories = ['Железо внутри', 'Логика и таблицы истинности', 'Сетевые технологии', 'Офисный арсенал', 'Игровой мир IT'];
+    const categories = ['Кодировка Фано', 'Количество информации', 'Комбинаторика'];
     
     await query(`
       UPDATE final_lobbies 
@@ -727,7 +823,7 @@ router.post('/answer', verifyToken, async (req, res) => {
   }
 });
 
-// Следующий ход с логикой "Своей игры"
+// Следующий ход
 router.post('/next-turn', verifyToken, async (req, res) => {
   try {
     console.log('🔄 /next-turn START');
@@ -737,11 +833,9 @@ router.post('/next-turn', verifyToken, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Игра не найдена' });
     }
     
-    // ========== ПРОВЕРЯЕМ, НЕ ЗАВЕРШЕНА ЛИ ИГРА ==========
     if (lobby[0].game_finished === 1) {
       console.log('🏁 Игра уже завершена!');
       
-      // Получаем финальные результаты
       const finalTeams = await query(`
         SELECT id, name, score FROM final_teams 
         WHERE lobby_id = ? 
@@ -764,14 +858,19 @@ router.post('/next-turn', verifyToken, async (req, res) => {
     
     if (lobby[0].current_results) {
       try {
-        const resultsData = JSON.parse(lobby[0].current_results);
+        let resultsData;
+        if (typeof lobby[0].current_results === 'string') {
+          resultsData = JSON.parse(lobby[0].current_results);
+        } else {
+          resultsData = lobby[0].current_results;
+        }
+        
         if (resultsData.nextTurnTeamId) {
           nextTeamId = resultsData.nextTurnTeamId;
           turnReason = resultsData.turnReason || '';
           console.log(`📊 Использую nextTurnTeamId из результатов: ${nextTeamId}`);
           console.log(`📊 Причина: ${turnReason}`);
           
-          // ========== ПРОВЕРЯЕМ, НЕ ЗАВЕРШЕНА ЛИ ИГРА В РЕЗУЛЬТАТАХ ==========
           if (resultsData.gameFinished) {
             console.log('🏁 Игра завершена! (из результатов)');
             await query('UPDATE final_lobbies SET game_started = 0, game_finished = 1 WHERE id = ?', [lobby[0].id]);
@@ -792,6 +891,7 @@ router.post('/next-turn', verifyToken, async (req, res) => {
         }
       } catch (e) {
         console.error('❌ Ошибка парсинга результатов:', e);
+        await query('UPDATE final_lobbies SET current_results = NULL WHERE id = ?', [lobby[0].id]);
       }
     }
     
@@ -846,7 +946,6 @@ router.post('/force-start', verifyToken, async (req, res) => {
 });
 
 // Завершить игру (дебаг)
-// Завершить игру (дебаг)
 router.post('/end-game', verifyToken, async (req, res) => {
   try {
     console.log('🏁 /end-game START');
@@ -858,14 +957,12 @@ router.post('/end-game', verifyToken, async (req, res) => {
     
     const lobbyId = lobby[0].id;
     
-    // Получаем финальные результаты перед очисткой
     const finalTeams = await query(`
       SELECT id, name, score FROM final_teams 
       WHERE lobby_id = ? 
       ORDER BY score DESC
     `, [lobbyId]);
     
-    // Очищаем всё
     await query('DELETE FROM final_answers WHERE lobby_id = ?', [lobbyId]);
     await query('DELETE FROM final_used_questions WHERE lobby_id = ?', [lobbyId]);
     await query('UPDATE final_lobbies SET game_started = 0, game_finished = 1 WHERE id = ?', [lobbyId]);
@@ -1036,6 +1133,7 @@ router.get('/debug-user/:userId', verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 // ПРИНУДИТЕЛЬНО ПЕРЕКЛЮЧИТЬ ХОД (дебаг)
 router.post('/debug-next-turn', verifyToken, async (req, res) => {
   try {
@@ -1049,28 +1147,23 @@ router.post('/debug-next-turn', verifyToken, async (req, res) => {
     const lobbyId = lobby[0].id;
     const currentTeamId = lobby[0].current_turn_team_id;
     
-    // Получаем все команды по порядку
     const teams = await query('SELECT id FROM final_teams WHERE lobby_id = ? ORDER BY id', [lobbyId]);
     if (teams.length === 0) {
       return res.status(404).json({ success: false, message: 'Нет команд' });
     }
     
-    // Находим текущий индекс
     let currentIndex = teams.findIndex(t => t.id === currentTeamId);
     if (currentIndex === -1) currentIndex = 0;
     
-    // Следующая команда по кругу
     const nextIndex = (currentIndex + 1) % teams.length;
     const nextTeamId = teams[nextIndex].id;
     
     console.log(`🔄 Принудительное переключение: ${currentTeamId} → ${nextTeamId}`);
     
-    // Обновляем ход
     await query('UPDATE final_lobbies SET current_turn_team_id = ? WHERE id = ?', [nextTeamId, lobbyId]);
     await query('UPDATE final_lobbies SET current_question_id = NULL, question_started_at = NULL WHERE id = ?', [lobbyId]);
     await query('UPDATE final_lobbies SET current_results = NULL, results_shown = 1 WHERE id = ?', [lobbyId]);
     
-    // Проверяем
     const check = await query('SELECT current_turn_team_id FROM final_lobbies WHERE id = ?', [lobbyId]);
     console.log(`✅ Ход переключён на команду ${check[0].current_turn_team_id}`);
     
@@ -1084,4 +1177,5 @@ router.post('/debug-next-turn', verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 module.exports = router;

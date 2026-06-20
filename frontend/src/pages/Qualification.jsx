@@ -1,3 +1,5 @@
+// frontend/src/pages/Qualification.jsx
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTeam, getQualificationQuestions, getQualificationProgress, saveQualificationProgress, resetQualificationProgress } from '../api/client';
@@ -6,7 +8,6 @@ import { useToast } from '../hooks/useToast';
 import DebugPanel from '../components/DebugPanel';
 import NeonBorder from '../components/NeonBorder';
 
-// SVG иконка для логотипа
 const BookIcon = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -24,7 +25,7 @@ export default function Qualification() {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [teamScore, setTeamScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(900);
+  const [timeLeft, setTimeLeft] = useState(3600);
   const [isFinished, setIsFinished] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -48,9 +49,9 @@ export default function Qualification() {
         setTeam(teamData);
         
         const config = {
-          totalQuestions: 25,
+          totalQuestions: 4,
           pointsPerQuestion: 10,
-          timeLimit: 900,
+          timeLimit: 3600,
           name: 'Отборочный тур'
         };
         setGameConfig(config);

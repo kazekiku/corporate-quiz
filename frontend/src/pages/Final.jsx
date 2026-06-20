@@ -1,3 +1,5 @@
+// frontend/src/pages/Final.jsx
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getFinalBoard, pickQuestion, submitFinalAnswer, nextTurn, getFinalResults } from '../api/client';
@@ -18,6 +20,13 @@ const TrophyIcon = () => (
   </svg>
 );
 
+// Функция форматирования времени MM:SS
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
 export default function Final() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -25,7 +34,7 @@ export default function Final() {
   const [board, setBoard] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [answerInput, setAnswerInput] = useState('');
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(360);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showResults, setShowResults] = useState(false);
@@ -105,7 +114,7 @@ export default function Final() {
       if (data?.currentQuestion) {
         setCurrentQuestion(data.currentQuestion);
         const passed = data.currentQuestion.timePassed || 0;
-        setTimeLeft(Math.max(0, 30 - passed));
+        setTimeLeft(Math.max(0, 360 - passed));
         setHasAnswered(!!data.userAnswers?.[user?.id]);
         setShowResults(false);
         setResults(null);
@@ -186,7 +195,7 @@ export default function Final() {
       }
       
       setCurrentQuestion(questionData);
-      setTimeLeft(30);
+      setTimeLeft(360);
       setAnswerInput('');
       setHasAnswered(false);
       setShowResults(false);
@@ -498,7 +507,7 @@ export default function Final() {
                       color: 'rgba(255,255,255,0.6)',
                       fontSize: '14px'
                     }}>
-                      {team.timeSpent?.toFixed(1)}с
+                      {Math.floor(team.timeSpent || 0)}с
                     </div>
                     
                     <div style={{ 
@@ -684,8 +693,8 @@ export default function Final() {
               <div className="final-question-header">
                 <span className="final-question-category">{currentQuestion.category}</span>
                 <span className="final-question-value">{currentQuestion.value} баллов</span>
-                <span className={`final-question-timer ${timeLeft < 10 ? 'danger' : ''}`}>
-                  ⏱ {Math.floor(timeLeft)} сек
+                <span className={`final-question-timer ${timeLeft < 60 ? 'danger' : ''}`}>
+                  ⏱ {formatTime(timeLeft)}
                 </span>
               </div>
               <div className="final-question-text">

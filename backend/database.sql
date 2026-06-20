@@ -1,275 +1,212 @@
--- corporate_quiz.sql
--- Создание базы данных
+-- =====================================================
+-- ПОЛНАЯ СТРУКТУРА БАЗЫ ДАННЫХ ДЛЯ КОРПОРАТИВНОЙ ВИКТОРИНЫ
+-- =====================================================
+
+-- Создаём базу данных (если ещё не создана)
 CREATE DATABASE IF NOT EXISTS corporate_quiz;
 USE corporate_quiz;
 
 -- =====================================================
--- ТАБЛИЦЫ ДЛЯ 1 ТУРА
+-- 1. ТАБЛИЦА КОМАНД
 -- =====================================================
-
--- Таблица сложности вопросов
-CREATE TABLE IF NOT EXISTS difficulty_levels (
-    id INT PRIMARY KEY,
-    name VARCHAR(20) NOT NULL,
-    points INT NOT NULL
+CREATE TABLE IF NOT EXISTS teams (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    access_code VARCHAR(20) UNIQUE NOT NULL,
+    email VARCHAR(255),
+    is_activated BOOLEAN DEFAULT FALSE,
+    captain_name VARCHAR(255),
+    qualifying_score INT DEFAULT 0,
+    is_finalist BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-INSERT INTO difficulty_levels (id, name, points) VALUES
-(1, 'Лёгкий', 10),
-(2, 'Средний', 20),
-(3, 'Сложный', 30)
-ON DUPLICATE KEY UPDATE name=VALUES(name), points=VALUES(points);
-
--- Таблица категорий вопросов 1 тура
-CREATE TABLE IF NOT EXISTS qualification_categories (
+-- =====================================================
+-- 2. ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ
+-- =====================================================
+CREATE TABLE IF NOT EXISTS users (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(50) NOT NULL,
-    description TEXT
+    team_id INT,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role ENUM('admin', 'captain', 'member') NOT NULL DEFAULT 'member',
+    is_finalist BOOLEAN DEFAULT FALSE,
+    access_code VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL
 );
 
-INSERT INTO qualification_categories (name, description) VALUES
-('Python', 'Вопросы по языку программирования Python'),
-('Алгоритмы', 'Вопросы по алгоритмам и структурам данных'),
-('Базы данных', 'Вопросы по SQL и базам данных'),
-('Сетевые технологии', 'Вопросы по компьютерным сетям'),
-('Общие знания', 'Общие вопросы по IT')
-ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
-
--- Таблица вопросов 1 тура
-CREATE TABLE IF NOT EXISTS qualification_questions (
+-- =====================================================
+-- 3. ТАБЛИЦА ВОПРОСОВ (ОБНОВЛЕННАЯ СТРУКТУРА)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS questions (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    category_id INT,
-    difficulty_id INT,
+    tour_type ENUM('qualification', 'final') NOT NULL,
+    category VARCHAR(50),
     question_text TEXT NOT NULL,
     option_a VARCHAR(500) NOT NULL,
     option_b VARCHAR(500) NOT NULL,
     option_c VARCHAR(500) NOT NULL,
     option_d VARCHAR(500) NOT NULL,
     correct_answer CHAR(1) NOT NULL,
-    explanation TEXT,
+    points INT DEFAULT 10,
+    time_limit INT DEFAULT 600,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES qualification_categories(id),
-    FOREIGN KEY (difficulty_id) REFERENCES difficulty_levels(id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Вставка вопросов (50 вопросов)
-INSERT INTO qualification_questions (category_id, difficulty_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation) VALUES
--- Лёгкие вопросы (1-17)
-(1, 1, 'Что выведет код?\na = 5\nb = 2\nprint(a ** b)', '10', '25', '7', '52', 'B', '5 ** 2 = 25'),
-(1, 1, 'Какой оператор в Python используется для проверки равенства двух значений?', '=', '==', '!=', ':=', 'B', 'Оператор == проверяет равенство'),
-(1, 1, 'Что делает метод .append(x) при вызове на списке в Python?', 'Удаляет элемент x из списка', 'Вставляет элемент x в начало списка', 'Добавляет элемент x в конец списка', 'Возвращает индекс элемента x', 'C', 'append() добавляет элемент в конец списка'),
-(1, 1, 'Дан список arr = [3, 1, 4, 1, 5]. Какое значение вернёт функция len(arr)?', '3', '4', '5', '14', 'C', 'В списке 5 элементов'),
-(1, 1, 'Что делает оператор // в Python?', 'Обычное деление', 'Целочисленное деление (деление нацело)', 'Возведение в степень', 'Остаток от деления', 'B', '// выполняет деление нацело'),
-(1, 1, 'Что выведет код?\nx = 10\ny = 3\nprint(x % y)', '1', '3', '3.33', '0', 'A', '10 % 3 = 1'),
-(1, 1, 'Какой цикл в Python выполняет блок кода, пока условие остаётся истинным?', 'for', 'while', 'if', 'def', 'B', 'while выполняет пока условие истинно'),
-(1, 1, 'Что происходит при выполнении оператора break внутри цикла?', 'Пропускается только текущая итерация', 'Цикл завершается досрочно', 'Цикл начинается заново', 'Программа завершается', 'B', 'break досрочно завершает цикл'),
-(1, 1, 'Что такое рекурсия в программировании?', 'Цикл с предусловием', 'Функция, вызывающая саму себя', 'Тип данных для дробных чисел', 'Способ обработки исключений', 'B', 'Рекурсия — вызов функции самой себя'),
-(1, 1, 'Как преобразовать строку "123" в целое число в Python?', 'str(123)', 'int("123")', 'float("123")', 'bool("123")', 'B', 'int() преобразует строку в число'),
-(2, 1, 'Что такое двоичная система счисления?', 'Система с основанием 8', 'Система с основанием 2', 'Система с основанием 10', 'Система с основанием 16', 'B', 'Двоичная система — система с основанием 2'),
-(2, 1, 'Какая структура данных работает по принципу LIFO (последний пришёл — первый ушёл)?', 'Очередь', 'Стек', 'Дек', 'Множество', 'B', 'LIFO — принцип работы стека'),
-(2, 1, 'Сколько бит содержится в 4 байтах?', '16', '32', '8', '64', 'B', '1 байт = 8 бит, 4 × 8 = 32'),
-(2, 1, 'Что происходит при выполнении оператора continue внутри цикла?', 'Цикл полностью завершается', 'Пропускается только текущая итерация', 'Программа завершается с ошибкой', 'Цикл начинается сначала', 'B', 'continue пропускает текущую итерацию'),
-(3, 1, 'Что такое IP-адрес?', 'Адрес электронной почты', 'Уникальный числовой адрес устройства в сети', 'Название браузера', 'Имя компьютера в локальной сети', 'B', 'IP-адрес — уникальный идентификатор устройства'),
-(1, 1, 'Чему равен результат выполнения операции 5 & 3 (побитовое И) в Python?', '1', '2', '5', '7', 'A', '5(101) & 3(011) = 1(001)'),
-(3, 1, 'Что такое сервер?', 'Программа для рисования', 'Компьютер или программа, предоставляющая услуги другим устройствам', 'Тип монитора', 'Операционная система', 'B', 'Сервер предоставляет услуги клиентам'),
-
--- Средние вопросы (18-33)
-(1, 2, 'Что выведет код?\ns = 0\nfor i in range(1, 6):\n    if i % 2 == 0:\n        s += i\nprint(s)', '15', '6', '9', '2', 'B', 'Сумма чётных чисел от 1 до 5: 2+4=6'),
-(1, 2, 'Что выведет код?\ndef f(n):\n    if n <= 1:\n        return 1\n    return n * f(n - 1)\nprint(f(4))', '24', '10', '4', '6', 'A', '4! = 4×3×2×1 = 24'),
-(1, 2, 'Какова временная сложность доступа к элементу по индексу в списке Python?', 'O(1)', 'O(n)', 'O(log n)', 'O(n²)', 'A', 'Доступ по индексу в списке O(1)'),
-(1, 2, 'Какова временная сложность линейного поиска элемента в несортированном списке из n элементов?', 'O(1)', 'O(log n)', 'O(n)', 'O(n²)', 'C', 'Линейный поиск — O(n)'),
-(2, 2, 'Что такое хеш-таблица?', 'Двумерный массив', 'Структура данных для быстрого поиска по ключу (в среднем за O(1))', 'Отсортированный список', 'Двоичное дерево поиска', 'B', 'Хеш-таблица обеспечивает быстрый поиск'),
-(1, 2, 'Что делает метод .pop() без аргументов при вызове на списке в Python?', 'Удаляет и возвращает первый элемент', 'Удаляет и возвращает последний элемент', 'Удаляет элемент с индексом 0', 'Очищает весь список', 'B', 'pop() удаляет последний элемент'),
-(3, 2, 'Запрос SQL: SELECT * FROM students WHERE grade >= 4 AND age < 16. Какие записи будут выбраны?', 'Только ученики с оценкой 4 или 5', 'Только ученики младше 16 лет', 'Ученики с оценкой от 4 и одновременно возрастом меньше 16 лет', 'Все ученики независимо от условий', 'C', 'Оба условия должны выполняться'),
-(1, 2, 'Дан массив [3, 7, 2, 9, 1]. Какое значение вернёт алгоритм поиска максимума?', '7', '9', '2', '1', 'B', 'Максимум — 9'),
-(1, 2, 'Для какого алгоритма характерна асимптотическая сложность O(log n)?', 'Линейный поиск в массиве', 'Бинарный поиск в отсортированном массиве', 'Сортировка пузырьком', 'Сортировка вставками', 'B', 'Бинарный поиск — O(log n)'),
-(1, 2, 'Что такое переполнение стека (stack overflow)?', 'Ошибка выделения памяти в куче', 'Ситуация, когда глубина рекурсии превышает лимит', 'Нехватка места на жёстком диске', 'Ошибка компиляции из-за синтаксиса', 'B', 'Stack overflow при глубокой рекурсии'),
-(1, 2, 'В чём различие между параметром и аргументом функции?', 'Параметр указывается при вызове, аргумент — при определении', 'Параметр — это имя в определении функции, аргумент — значение при вызове', 'Это одно и то же понятие', 'Параметр может быть только числом, аргумент — строкой', 'B', 'Параметр — формальный, аргумент — фактический'),
-(1, 2, 'Какое десятичное число вернёт код int("1010", 2) в Python?', '1010', '2', '10', '5', 'C', '1010₂ = 1×8 + 0×4 + 1×2 + 0×1 = 10'),
-(3, 2, 'Какой оператор SQL используется для фильтрации строк до применения GROUP BY?', 'WHERE', 'HAVING', 'FILTER', 'ORDER BY', 'A', 'WHERE фильтрует до группировки'),
-(1, 2, 'Что выведет код?\na = [1, 2, 3]\nb = a\nb.append(4)\nprint(a)', '[1, 2, 3]', '[1, 2, 3, 4]', '[4]', 'Ошибка', 'B', 'Списки — изменяемый тип, b ссылается на a'),
-(1, 2, 'Какая структура данных наиболее эффективно реализует очередь с операциями добавления в конец и удаления из начала?', 'Стек', 'Обычный список Python с pop(0)', 'collections.deque', 'Множество (set)', 'C', 'deque оптимизирован для таких операций'),
-(2, 2, 'Что такое битовая маска?', 'Способ шифрования данных', 'Набор битов, где каждый бит представляет отдельный флаг', 'Графический файл специального формата', 'Специальный регистр процессора', 'B', 'Битовая маска — набор флагов'),
-
--- Сложные вопросы (34-50)
-(3, 3, 'Данные таблицы "Товары" с полями: Категория, Цена, Количество. Какой SQL-запрос вычислит общую стоимость товаров (цена * количество) для каждой категории?', 'SELECT SUM(Цена * Количество) FROM Товары', 'SELECT Категория, SUM(Цена * Количество) FROM Товары GROUP BY Категория', 'SELECT Категория, Цена * Количество FROM Товары', 'SELECT Категория, AVG(Цена) FROM Товары GROUP BY Категория', 'B', 'GROUP BY нужен для агрегации по категориям'),
-(3, 3, 'Что такое внешний ключ (FOREIGN KEY) в реляционной базе данных?', 'Поле, являющееся первичным ключом в текущей таблице', 'Поле, которое ссылается на первичный ключ в другой таблице', 'Поле, которое может содержать пустые значения', 'Поле, хранящее пароль для доступа к данным', 'B', 'FOREIGN KEY — связь между таблицами'),
-(3, 3, 'Какой SQL-запрос корректно находит сотрудников, чья зарплата выше средней зарплаты по их отделу?', 'SELECT * FROM employees WHERE salary > AVG(salary)', 'SELECT * FROM employees GROUP BY department HAVING salary > AVG(salary)', 'SELECT * FROM employees e WHERE salary > (SELECT AVG(salary) FROM employees WHERE department = e.department)', 'SELECT * FROM employees WHERE salary > (SELECT AVG(salary) FROM employees)', 'C', 'Коррелированный подзапрос по каждому отделу'),
-(3, 3, 'Какой оператор SQL применяется для фильтрации групп после выполнения GROUP BY?', 'WHERE', 'HAVING', 'GROUP BY', 'ORDER BY', 'B', 'HAVING фильтрует после группировки'),
-(3, 3, 'Что делает оператор LEFT JOIN в SQL?', 'Возвращает только строки, совпадающие в обеих таблицах', 'Возвращает все строки из левой таблицы и совпадающие из правой', 'Возвращает все строки из правой таблицы и совпадающие из левой', 'Удаляет строки из левой таблицы', 'B', 'LEFT JOIN сохраняет все строки левой таблицы'),
-(1, 3, 'Какое число выведет код?\ndef fib(n):\n    if n <= 1:\n        return n\n    return fib(n-1) + fib(n-2)\nprint(fib(5))', '3', '5', '8', '13', 'B', '5-е число Фибоначчи: 0,1,1,2,3,5'),
-(1, 3, 'Какова временная сложность рекурсивной реализации чисел Фибоначчи без мемоизации?', 'O(n)', 'O(n log n)', 'O(2^n)', 'O(n^2)', 'C', 'Экспоненциальная сложность из-за повторных вычислений'),
-(1, 3, 'Что такое динамическое программирование?', 'Написание программ на динамических языках', 'Метод оптимизации, сохраняющий результаты подзадач для повторного использования', 'Разработка компьютерных игр', 'Программирование с использованием указателей', 'B', 'DP — сохранение результатов подзадач'),
-(2, 3, 'Что такое указатель в языке C++?', 'Переменная, хранящая адрес памяти другой переменной', 'Константное значение', 'Число с плавающей точкой', 'Функция, вызываемая при событии', 'A', 'Указатель хранит адрес'),
-(1, 3, 'В чём разница между передачей аргумента по значению и по ссылке?', 'При передаче по значению функция работает с копией, при передаче по ссылке — с оригиналом', 'При передаче по значению функция меняет оригинал, при передаче по ссылке — нет', 'Разницы нет', 'По ссылке можно передавать только числа', 'A', 'По значению — копия, по ссылке — оригинал'),
-(2, 3, 'Что такое двусвязный список?', 'Список, где каждый элемент хранит ссылку только на следующий элемент', 'Список, где каждый элемент хранит ссылки на предыдущий и следующий элементы', 'Список, состоящий ровно из двух элементов', 'Список, замкнутый в кольцо', 'B', 'Двусвязный список — ссылки в обе стороны'),
-(1, 3, 'Какова временная сложность сортировки слиянием (merge sort) в худшем случае?', 'O(n)', 'O(n log n)', 'O(n²)', 'O(log n)', 'B', 'Сортировка слиянием — O(n log n)'),
-(2, 3, 'Что такое коллизия в контексте хеш-таблиц?', 'Два ключа имеют одинаковое значение', 'Разные ключи дают одинаковый хеш-код', 'В таблице закончилось место', 'Ошибка при вычислении хеша', 'B', 'Коллизия — одинаковый хеш для разных ключей'),
-(2, 3, 'Сколько существует различных двоичных строк длины 5, содержащих ровно две единицы?', '5', '8', '10', '15', 'C', 'C(5,2)=10 комбинаций'),
-(1, 3, 'Какой алгоритм реализован в коде?\ndef mystery(arr):\n    if len(arr) <= 1:\n        return arr\n    mid = len(arr) // 2\n    left = mystery(arr[:mid])\n    right = mystery(arr[mid:])\n    return merge(left, right)', 'Линейный поиск', 'Сортировка пузырьком', 'Сортировка слиянием', 'Быстрая сортировка', 'C', 'Рекурсивное деление и слияние — сортировка слиянием'),
-(3, 3, 'Какой протокол используется для отправки электронной почты?', 'HTTP', 'FTP', 'SMTP', 'TCP', 'C', 'SMTP — Simple Mail Transfer Protocol'),
-(2, 3, 'Какой алгоритм используется для поиска всех компонент связности в неориентированном графе?', 'Бинарный поиск', 'Обход в глубину (DFS) или обход в ширину (BFS)', 'Сортировка слиянием', 'Алгоритм Дейкстры', 'B', 'DFS и BFS находят компоненты связности');
-
 -- =====================================================
--- ТАБЛИЦЫ ДЛЯ 2 ТУРА (Финал)
+-- 4. ТАБЛИЦА КАТЕГОРИЙ ДЛЯ ФИНАЛА
 -- =====================================================
-
--- Таблица категорий финала
 CREATE TABLE IF NOT EXISTS final_categories (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
-    display_order INT DEFAULT 0
+    display_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO final_categories (name, display_order) VALUES
-('Железо внутри', 1),
-('Логика и таблицы истинности', 2),
-('Сетевые технологии', 3),
-('Офисный арсенал', 4),
-('Игровой мир IT', 5);
-
--- Таблица вопросов финала (25 вопросов)
+-- =====================================================
+-- 5. ТАБЛИЦА ВОПРОСОВ ДЛЯ ФИНАЛА
+-- =====================================================
 CREATE TABLE IF NOT EXISTS final_questions (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    category_id INT,
+    category_id INT NOT NULL,
     value_points INT NOT NULL,
     question_text TEXT NOT NULL,
-    correct_answer VARCHAR(500) NOT NULL,
-    explanation TEXT,
-    FOREIGN KEY (category_id) REFERENCES final_categories(id)
+    correct_answer VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES final_categories(id) ON DELETE CASCADE
 );
-
-INSERT INTO final_questions (category_id, value_points, question_text, correct_answer, explanation) VALUES
--- Железо внутри (категория 1)
-(1, 100, 'Какой форм-фактор твердотельных накопителей, подключаемых прямо к материнской плате, поддерживает как SATA, так и NVMe?', 'M.2', 'M.2 поддерживает оба интерфейса'),
-(1, 200, 'Массив RAID 5 построен из четырёх дисков по 2 ТБ каждый. Какой полезный объём доступен пользователю?', '6 ТБ', '4 диска × 2 ТБ = 8 ТБ, минус 2 ТБ на чётность = 6 ТБ'),
-(1, 300, 'Какая последовательная шина пришла на смену PCI и AGP для подключения дискретных видеокарт?', 'PCI Express (PCIe)', 'PCIe заменила PCI и AGP'),
-(1, 400, 'Как называется архитектура памяти, при которой встроенный графический процессор (iGPU) использует часть системной оперативной памяти?', 'UMA (Unified Memory Architecture)', 'UMA — унифицированная память'),
-(1, 500, 'Какой параметр монитора, выражаемый в битах, определяет количество отображаемых оттенков на каждый цветовой канал?', 'Глубина цвета', 'Глубина цвета определяет количество оттенков'),
-
--- Логика и таблицы истинности (категория 2)
-(2, 100, 'Сколько всего различных булевых функций можно построить от трёх переменных?', '256', '2^(2^3) = 2^8 = 256'),
-(2, 200, 'Сколько решений имеет уравнение (X ∨ Y) ∧ (¬X ∨ ¬Y) = 1?', '2', 'Решения: (1,0) и (0,1)'),
-(2, 300, 'Как называется булева операция "стрелка Пирса"?', 'NOR (ИЛИ-НЕ)', 'NOR — отрицание дизъюнкции'),
-(2, 400, 'Какая логическая операция соответствует элементу "исключающее ИЛИ с инверсией" (XNOR)?', 'Эквивалентность', 'XNOR = эквивалентность'),
-(2, 500, 'Сколько конъюнкций (минтермов) в совершенной дизъюнктивной нормальной форме мажоритарной функции трёх переменных?', '4', 'Мажоритарная функция: 4 комбинации'),
-
--- Сетевые технологии (категория 3)
-(3, 100, 'Какой протокол автоматически выдаёт устройству IP-адрес, маску подсети и шлюз при подключении к сети?', 'DHCP', 'DHCP — Dynamic Host Configuration Protocol'),
-(3, 200, 'Какая утилита командной строки использует протокол ICMP для проверки доступности узла?', 'ping', 'ping использует ICMP'),
-(3, 300, 'Сколько бит в MAC-адресе?', '48 бит', 'MAC-адрес = 6 байт = 48 бит'),
-(3, 400, 'Какой порт по умолчанию использует протокол HTTPS?', '443', 'HTTPS использует порт 443'),
-(3, 500, 'Какой тип DNS-записи сопоставляет доменное имя с IPv6-адресом?', 'AAAA', 'AAAA-запись для IPv6'),
-
--- Офисный арсенал (категория 4)
-(4, 100, 'Какая функция Excel ищет значение в крайнем левом столбце таблицы и возвращает значение из указанного столбца в той же строке?', 'ВПР', 'ВПР — вертикальный просмотр'),
-(4, 200, 'Какая функция Excel подсчитывает количество ячеек в диапазоне, удовлетворяющих одному заданному условию?', 'СЧЁТЕСЛИ', 'COUNTIF — счёт с условием'),
-(4, 300, 'Какая функция Excel возвращает относительную позицию искомого элемента в диапазоне?', 'ПОИСКПОЗ', 'MATCH — поиск позиции'),
-(4, 400, 'Какое поле Word вставляется, чтобы отобразить общее количество страниц в документе?', 'NumPages', 'NumPages — поле для количества страниц'),
-(4, 500, 'Какой инструмент Excel позволяет подобрать значение в одной ячейке, изменяя другую, чтобы получить нужный результат формулы?', 'Подбор параметра', 'Goal Seek — подбор параметра'),
-
--- Игровой мир IT (категория 5)
-(5, 100, 'Какую игру запускают на всем подряд?', 'Doom', 'Doom — культовая игра'),
-(5, 200, 'Какая технология рендеринга симулирует поведение света для получения фотореалистичного изображения?', 'Трассировка лучей (Ray Tracing)', 'Ray Tracing — технология трассировки лучей'),
-(5, 300, 'Как называется популярный игровой движок от Epic Games, используемый во многих AAA-проектах?', 'Unreal Engine', 'Unreal Engine — игровой движок'),
-(5, 400, 'Как аббревиатурой называют технологию полного погружения в цифровое окружение?', 'VR (Virtual Reality)', 'VR — виртуальная реальность'),
-(5, 500, 'В какой игре 1981 года состоялся дебют персонажа Марио?', 'Donkey Kong', 'Марио впервые появился в Donkey Kong');
 
 -- =====================================================
--- ТАБЛИЦЫ ДЛЯ ИГРОВОЙ ЛОГИКИ
+-- 6. ТАБЛИЦА ОТБОРОЧНЫХ ВОПРОСОВ
 -- =====================================================
-
--- Таблица пользователей
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS qualification_questions (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    full_name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    role ENUM('L', 'E') NOT NULL DEFAULT 'L',
-    team_id INT,
-    is_finalist BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_team_id (team_id)
+    question_text TEXT NOT NULL,
+    option_a VARCHAR(500) NOT NULL,
+    option_b VARCHAR(500) NOT NULL,
+    option_c VARCHAR(500) NOT NULL,
+    option_d VARCHAR(500) NOT NULL,
+    correct_answer CHAR(1) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Таблица команд
-CREATE TABLE IF NOT EXISTS teams (
+-- =====================================================
+-- 7. ТАБЛИЦА ИГРОВЫХ СЕССИЙ
+-- =====================================================
+CREATE TABLE IF NOT EXISTS game_sessions (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    captain_id INT,
-    qualifying_score INT DEFAULT 0,
-    is_finalist BOOLEAN DEFAULT FALSE,
+    session_id VARCHAR(50) UNIQUE NOT NULL,
+    type ENUM('qualification', 'final') NOT NULL,
+    status ENUM('waiting', 'ready', 'active', 'finished') DEFAULT 'waiting',
+    started_at DATETIME,
+    finished_at DATETIME,
+    created_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (captain_id) REFERENCES users(id)
+    FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
--- Связь пользователей с командами
-CREATE TABLE IF NOT EXISTS team_members (
+-- =====================================================
+-- 8. ТАБЛИЦА УЧАСТНИКОВ СЕССИЙ
+-- =====================================================
+CREATE TABLE IF NOT EXISTS session_participants (
     id INT PRIMARY KEY AUTO_INCREMENT,
+    session_id INT NOT NULL,
     team_id INT NOT NULL,
-    user_id INT NOT NULL,
+    is_ready BOOLEAN DEFAULT FALSE,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES game_sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    UNIQUE KEY unique_team_user (team_id, user_id)
+    UNIQUE KEY unique_session_team (session_id, team_id)
 );
 
--- Таблица прогресса отборочного тура
+-- =====================================================
+-- 9. ТАБЛИЦА ПРОГРЕССА ОТБОРОЧНОГО ТУРА
+-- =====================================================
 CREATE TABLE IF NOT EXISTS qualification_progress (
     id INT PRIMARY KEY AUTO_INCREMENT,
     team_id INT NOT NULL,
     current_index INT DEFAULT 0,
     team_score INT DEFAULT 0,
-    players_order TEXT,
+    players_order JSON,
     current_player_id INT,
     time_left INT DEFAULT 900,
-    answers TEXT,
+    answers JSON,
     finished BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (team_id) REFERENCES teams(id),
-    INDEX idx_team_id (team_id)
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_team (team_id)
 );
 
 -- =====================================================
--- ТАБЛИЦЫ ДЛЯ ФИНАЛА
+-- 10. ТАБЛИЦА ФИНАЛЬНЫХ ЛОББИ
 -- =====================================================
-
--- Таблица финальных лобби
 CREATE TABLE IF NOT EXISTS final_lobbies (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    session_id VARCHAR(20) UNIQUE NOT NULL,
+    session_id VARCHAR(50) UNIQUE NOT NULL,
     game_started BOOLEAN DEFAULT FALSE,
-    created_by INT,
+    game_finished BOOLEAN DEFAULT FALSE,
     current_turn_team_id INT,
+    current_question_id INT,
+    question_started_at DATETIME,
+    current_results JSON,
+    results_shown BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_session_id (session_id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Таблица финальных команд
+-- =====================================================
+-- 11. ТАБЛИЦА ФИНАЛЬНЫХ КОМАНД
+-- =====================================================
 CREATE TABLE IF NOT EXISTS final_teams (
     id INT PRIMARY KEY AUTO_INCREMENT,
     lobby_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
-    captain_id INT NOT NULL,
     score INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (lobby_id) REFERENCES final_lobbies(id) ON DELETE CASCADE,
-    FOREIGN KEY (captain_id) REFERENCES users(id)
+    FOREIGN KEY (lobby_id) REFERENCES final_lobbies(id) ON DELETE CASCADE
 );
 
--- Таблица участников финала
+-- =====================================================
+-- 12. ТАБЛИЦА УЧАСТНИКОВ ФИНАЛА
+-- =====================================================
 CREATE TABLE IF NOT EXISTS final_participants (
     id INT PRIMARY KEY AUTO_INCREMENT,
     lobby_id INT NOT NULL,
     team_id INT NOT NULL,
+    user_id INT NOT NULL,
     is_ready BOOLEAN DEFAULT FALSE,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (lobby_id) REFERENCES final_lobbies(id) ON DELETE CASCADE,
     FOREIGN KEY (team_id) REFERENCES final_teams(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_lobby_team (lobby_id, team_id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_lobby_team_user (lobby_id, team_id, user_id)
 );
 
--- Таблица использованных вопросов финала
+-- =====================================================
+-- 13. ТАБЛИЦА ОТВЕТОВ В ФИНАЛЕ
+-- =====================================================
+CREATE TABLE IF NOT EXISTS final_answers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    lobby_id INT NOT NULL,
+    team_id INT NOT NULL,
+    question_id INT NOT NULL,
+    answer TEXT,
+    answered_at DATETIME,
+    is_correct BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (lobby_id) REFERENCES final_lobbies(id) ON DELETE CASCADE,
+    FOREIGN KEY (team_id) REFERENCES final_teams(id) ON DELETE CASCADE
+);
+
+-- =====================================================
+-- 14. ТАБЛИЦА ИСПОЛЬЗОВАННЫХ ВОПРОСОВ В ФИНАЛЕ
+-- =====================================================
 CREATE TABLE IF NOT EXISTS final_used_questions (
     id INT PRIMARY KEY AUTO_INCREMENT,
     lobby_id INT NOT NULL,
@@ -277,20 +214,115 @@ CREATE TABLE IF NOT EXISTS final_used_questions (
     value_points INT NOT NULL,
     used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (lobby_id) REFERENCES final_lobbies(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_lobby_question (lobby_id, category_id, value_points)
+    UNIQUE KEY unique_lobby_category_value (lobby_id, category_id, value_points)
 );
 
 -- =====================================================
--- ВЬЮ ДЛЯ РЕЙТИНГА
+-- 15. ТАБЛИЦА ВИДЕО
 -- =====================================================
+CREATE TABLE IF NOT EXISTS videos (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    type ENUM('intro', 'between_tours', 'outro') NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 
+-- =====================================================
+-- 16. ТАБЛИЦА ДЛЯ РЕЙТИНГА (VIEW)
+-- =====================================================
 CREATE OR REPLACE VIEW rating_view AS
 SELECT 
     t.id,
     t.name,
-    t.qualifying_score as score,
+    COALESCE(qp.team_score, 0) as score,
     t.is_finalist,
-    (SELECT COUNT(*) + 1 FROM teams t2 WHERE t2.qualifying_score > t.qualifying_score) as position
+    CASE 
+        WHEN t.is_finalist = 1 THEN 'Финалист'
+        WHEN qp.team_score > 0 THEN 'Участник'
+        ELSE 'Новый'
+    END as status
 FROM teams t
-WHERE t.qualifying_score > 0
-ORDER BY t.qualifying_score DESC;
+LEFT JOIN qualification_progress qp ON t.id = qp.team_id AND qp.finished = 1
+WHERE t.is_activated = 1
+ORDER BY score DESC;
+
+-- =====================================================
+-- 17. ДОБАВЛЯЕМ КАТЕГОРИИ ДЛЯ ФИНАЛА
+-- =====================================================
+INSERT IGNORE INTO final_categories (id, name, display_order) VALUES
+(1, 'Железо внутри', 1),
+(2, 'Логика и таблицы истинности', 2),
+(3, 'Сетевые технологии', 3),
+(4, 'Офисный арсенал', 4),
+(5, 'Игровой мир IT', 5);
+
+-- =====================================================
+-- 18. ДОБАВЛЯЕМ ПРИМЕРНЫЕ ВОПРОСЫ ДЛЯ ОТБОРОЧНОГО ТУРА
+-- =====================================================
+INSERT IGNORE INTO qualification_questions (question_text, option_a, option_b, option_c, option_d, correct_answer) VALUES
+('Какое устройство является основным вычислительным элементом компьютера?', 'Процессор', 'Память', 'Жесткий диск', 'Видеокарта', 'A'),
+('Что такое операционная система?', 'Программа для работы с файлами', 'Набор программ для управления ресурсами компьютера', 'Антивирусное ПО', 'Драйвер для принтера', 'B'),
+('Какой язык программирования используется для создания веб-страниц?', 'Python', 'Java', 'HTML', 'C++', 'C'),
+('Что такое IP-адрес?', 'Уникальный идентификатор устройства в сети', 'Адрес электронной почты', 'Название сайта', 'Пароль для входа', 'A'),
+('Какая компания создала операционную систему Windows?', 'Apple', 'Google', 'Microsoft', 'IBM', 'C');
+
+-- =====================================================
+-- 19. ДОБАВЛЯЕМ ПРИМЕРНЫЕ ВОПРОСЫ ДЛЯ ФИНАЛА
+-- =====================================================
+INSERT IGNORE INTO final_questions (category_id, value_points, question_text, correct_answer) VALUES
+-- Железо внутри (категория 1)
+(1, 100, 'Какой процессорный сокет используется для процессоров Intel Core 13-го поколения?', 'LGA1700'),
+(1, 200, 'Что такое кэш-память процессора?', 'Быстрая память для хранения часто используемых данных'),
+(1, 300, 'Какой тип памяти используется в современных видеокартах?', 'GDDR6'),
+(1, 400, 'Что такое PCI Express?', 'Шина для подключения устройств расширения'),
+(1, 500, 'Какая материнская плата поддерживает процессоры AMD AM5?', 'X670'),
+
+-- Логика и таблицы истинности (категория 2)
+(2, 100, 'Что такое логический элемент И (AND)?', 'Выход 1 только если все входы 1'),
+(2, 200, 'Какая операция логического сложения?', 'ИЛИ (OR)'),
+(2, 300, 'Что такое таблица истинности?', 'Таблица всех возможных значений логической функции'),
+(2, 400, 'Сколько комбинаций для 4 переменных в таблице истинности?', '16'),
+(2, 500, 'Что такое де-Моргана законы?', 'Правила преобразования логических выражений'),
+
+-- Сетевые технологии (категория 3)
+(3, 100, 'Что такое протокол TCP/IP?', 'Набор правил для передачи данных в сети'),
+(3, 200, 'Какая модель OSI имеет 7 уровней?', 'Эталонная модель взаимодействия открытых систем'),
+(3, 300, 'Что такое маршрутизация?', 'Процесс определения пути передачи данных в сети'),
+(3, 400, 'Какой протокол используется для защиты данных в сети?', 'SSL/TLS'),
+(3, 500, 'Что такое VLAN?', 'Виртуальная локальная сеть'),
+
+-- Офисный арсенал (категория 4)
+(4, 100, 'Какая функция в Excel вычисляет сумму?', 'SUM'),
+(4, 200, 'Что такое VBA?', 'Visual Basic for Applications'),
+(4, 300, 'Какой формат файлов используется для макросов Excel?', 'XLSM'),
+(4, 400, 'Что такое сводная таблица в Excel?', 'Инструмент для анализа и агрегации данных'),
+(4, 500, 'Какая функция в Excel ищет значение по вертикали?', 'ВПР (VLOOKUP)'),
+
+-- Игровой мир IT (категория 5)
+(5, 100, 'Какая компания создала игру Minecraft?', 'Mojang'),
+(5, 200, 'Что такое FPS в играх?', 'Кадров в секунду'),
+(5, 300, 'Какая игра считается первой в жанре MMO?', 'Ultima Online'),
+(5, 400, 'Что такое Ray Tracing?', 'Технология трассировки лучей'),
+(5, 500, 'Какая игровая консоль вышла первой?', 'Magnavox Odyssey');
+
+-- =====================================================
+-- 20. ДОБАВЛЯЕМ АДМИНИСТРАТОРА
+-- =====================================================
+INSERT IGNORE INTO users (full_name, email, role) 
+VALUES ('Администратор', 'admin@quiz.local', 'admin');
+
+-- =====================================================
+-- 21. ДОБАВЛЯЕМ ПРИМЕРНЫЕ ВИДЕО
+-- =====================================================
+INSERT IGNORE INTO videos (title, url, type) VALUES
+('Вступление к игре', '/videos/intro.mp4', 'intro'),
+('Переход между турами', '/videos/between_tours.mp4', 'between_tours'),
+('Финальное видео', '/videos/final.mp4', 'outro');
+
+-- =====================================================
+-- ПРОВЕРКА СОЗДАННЫХ ТАБЛИЦ
+-- =====================================================
+SHOW TABLES;
