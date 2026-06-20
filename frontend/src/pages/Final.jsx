@@ -395,6 +395,17 @@ export default function Final() {
               <p style={{ fontSize: '20px', fontWeight: '500', margin: 0 }}>
                 {results.question?.text}
               </p>
+              {/* ← ДОБАВЛЯЕМ ПРАВИЛЬНЫЙ ОТВЕТ */}
+              {results.correctAnswer && (
+                <p style={{ 
+                  marginTop: '12px', 
+                  fontSize: '16px', 
+                  color: '#10b981',
+                  fontWeight: '600'
+                }}>
+                  ✅ Правильный ответ: {results.correctAnswer}
+                </p>
+              )}
             </div>
 
             <div className="rating-table" style={{ marginBottom: '24px' }}>

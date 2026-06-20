@@ -11,12 +11,6 @@ const isAdmin = async (userId) => {
   return user[0]?.role === 'admin';
 };
 
-// Вспомогательная функция для проверки количества категорий
-async function isMaxCategoriesReached() {
-  const count = await query('SELECT COUNT(*) as count FROM final_categories');
-  return count[0].count >= 3;
-}
-
 // ============================================================
 // УПРАВЛЕНИЕ КОМАНДАМИ
 // ============================================================
@@ -89,226 +83,7 @@ router.delete('/teams/:id', verifyToken, async (req, res) => {
 // УПРАВЛЕНИЕ ВОПРОСАМИ
 // ============================================================
 
-// Загрузка вопросов из TXT файла (для отбора и финала)
-router.post('/questions/upload-txt', verifyToken, async (req, res) => {
-  try {
-    if (!(await isAdmin(req.user.id))) {
-      return res.status(403).json({ success: false, message: 'Нет доступа' });
-    }
-    
-    const { text, tourType } = req.body;
-    
-    if (!text || !tourType) {
-      return res.status(400).json({ success: false, message: 'Не указан текст или тип тура' });
-    }
-    
-    let inserted = 0;
-    
-    if (tourType === 'qualification') {
-      // Парсинг для отборочного тура
-      const lines = text.split('\n').filter(line => line.trim());
-      let currentQuestion = null;
-      let options = {};
-      let correctAnswer = '';
-      
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.match(/^\d+\./)) {
-          if (currentQuestion) {
-            await query(`
-              INSERT INTO qualification_questions 
-              (question_text, option_a, option_b, option_c, option_d, correct_answer)
-              VALUES (?, ?, ?, ?, ?, ?)
-            `, [
-              currentQuestion,
-              options.A || '',
-              options.B || '',
-              options.C || '',
-              options.D || '',
-              correctAnswer
-            ]);
-            inserted++;
-          }
-          currentQuestion = trimmed.replace(/^\d+\.\s*/, '');
-          options = {};
-          correctAnswer = '';
-        } else if (trimmed.match(/^[A-Da-d]\)/)) {
-          const key = trimmed.charAt(0).toUpperCase();
-          const value = trimmed.replace(/^[A-Da-d]\)\s*/, '');
-          options[key] = value;
-        } else if (trimmed.toLowerCase().includes('ответ:')) {
-          const match = trimmed.match(/ответ:\s*([A-Da-d])/i);
-          if (match) {
-            correctAnswer = match[1].toUpperCase();
-          }
-        }
-      }
-      
-      if (currentQuestion) {
-        await query(`
-          INSERT INTO qualification_questions 
-          (question_text, option_a, option_b, option_c, option_d, correct_answer)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `, [
-          currentQuestion,
-          options.A || '',
-          options.B || '',
-          options.C || '',
-          options.D || '',
-          correctAnswer
-        ]);
-        inserted++;
-      }
-      
-    } else if (tourType === 'final') {
-      // Парсинг для финала - 3 категории по 5 вопросов
-      const lines = text.split('\n').filter(line => line.trim());
-      let currentCategory = null;
-      let currentCategoryName = '';
-      let currentQuestion = null;
-      let currentAnswer = '';
-      let questionsInCategory = 0;
-      
-      // Очищаем старые категории и вопросы
-      await query('DELETE FROM final_questions');
-      await query('DELETE FROM final_categories');
-      await query('ALTER TABLE final_categories AUTO_INCREMENT = 1');
-      await query('ALTER TABLE final_questions AUTO_INCREMENT = 1');
-      
-      for (const line of lines) {
-        const trimmed = line.trim();
-        
-        // Проверяем, не заголовок ли это категории
-        if (!trimmed.match(/^\d+\./) && 
-            !trimmed.toLowerCase().includes('ответ:') && 
-            trimmed.length > 0 &&
-            trimmed !== '---' &&
-            trimmed !== '___' &&
-            !trimmed.match(/^[A-Da-d]\)/)) {
-          
-          // Сохраняем предыдущий вопрос, если он был
-          if (currentQuestion && currentCategory) {
-            if (questionsInCategory < 5) {
-              const points = [100, 200, 300, 400, 500][questionsInCategory];
-              await query(`
-                INSERT INTO final_questions 
-                (category_id, value_points, question_text, correct_answer)
-                VALUES (?, ?, ?, ?)
-              `, [
-                currentCategory,
-                points,
-                currentQuestion,
-                currentAnswer
-              ]);
-              inserted++;
-              questionsInCategory++;
-            } else {
-              console.warn(`⚠️ В категории "${currentCategoryName}" уже 5 вопросов, пропускаем: ${currentQuestion}`);
-            }
-          }
-          
-          // Проверяем, не достигнут ли лимит в 3 категории
-          if (await isMaxCategoriesReached()) {
-            console.warn('⚠️ Уже 3 категории, пропускаем: ' + trimmed);
-            currentCategory = null;
-            currentQuestion = null;
-            currentAnswer = '';
-            questionsInCategory = 0;
-            continue;
-          }
-          
-          // Начинаем новую категорию
-          const categoryName = trimmed.replace(/^[\d\s\.\-]+/, '').trim();
-          currentCategoryName = categoryName;
-          
-          const existingCategory = await query('SELECT id FROM final_categories WHERE name = ?', [categoryName]);
-          if (existingCategory.length > 0) {
-            currentCategory = existingCategory[0].id;
-          } else {
-            const result = await query(
-              'INSERT INTO final_categories (name, display_order) VALUES (?, ?)',
-              [categoryName, 0]
-            );
-            currentCategory = result.insertId;
-            console.log(`📂 Создана категория: ${categoryName} (ID: ${currentCategory})`);
-          }
-          
-          currentQuestion = null;
-          currentAnswer = '';
-          questionsInCategory = 0;
-          continue;
-        }
-        
-        // Вопрос с номером
-        if (trimmed.match(/^\d+\./)) {
-          // Сохраняем предыдущий вопрос, если есть
-          if (currentQuestion && currentCategory) {
-            if (questionsInCategory < 5) {
-              const points = [100, 200, 300, 400, 500][questionsInCategory];
-              await query(`
-                INSERT INTO final_questions 
-                (category_id, value_points, question_text, correct_answer)
-                VALUES (?, ?, ?, ?)
-              `, [
-                currentCategory,
-                points,
-                currentQuestion,
-                currentAnswer
-              ]);
-              inserted++;
-              questionsInCategory++;
-            } else {
-              console.warn(`⚠️ В категории "${currentCategoryName}" уже 5 вопросов, пропускаем: ${currentQuestion}`);
-            }
-          }
-          // Начинаем новый вопрос
-          currentQuestion = trimmed.replace(/^\d+\.\s*/, '');
-          currentAnswer = '';
-        } else if (trimmed.toLowerCase().includes('ответ:')) {
-          // Правильный ответ
-          const match = trimmed.match(/ответ:\s*(.+)/i);
-          if (match) {
-            currentAnswer = match[1].trim();
-          }
-        }
-      }
-      
-      // Сохраняем последний вопрос
-      if (currentQuestion && currentCategory) {
-        if (questionsInCategory < 5) {
-          const points = [100, 200, 300, 400, 500][questionsInCategory];
-          await query(`
-            INSERT INTO final_questions 
-            (category_id, value_points, question_text, correct_answer)
-            VALUES (?, ?, ?, ?)
-          `, [
-            currentCategory,
-            points,
-            currentQuestion,
-            currentAnswer
-          ]);
-          inserted++;
-          questionsInCategory++;
-        } else {
-          console.warn(`⚠️ В категории "${currentCategoryName}" уже 5 вопросов, пропускаем: ${currentQuestion}`);
-        }
-      }
-      
-      // Обновляем display_order для категорий (максимум 3)
-      const categories = await query('SELECT id FROM final_categories ORDER BY id LIMIT 3');
-      for (let i = 0; i < categories.length; i++) {
-        await query('UPDATE final_categories SET display_order = ? WHERE id = ?', [i + 1, categories[i].id]);
-      }
-    }
-    
-    res.json({ success: true, message: `Загружено ${inserted} вопросов` });
-  } catch (error) {
-    console.error('❌ Ошибка загрузки вопросов из TXT:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Загрузка вопросов из JSON/CSV (старый метод)
+// Загрузка вопросов из файла (CSV/JSON)
 router.post('/questions/upload', verifyToken, async (req, res) => {
   try {
     if (!(await isAdmin(req.user.id))) {
@@ -366,6 +141,191 @@ router.post('/questions/upload', verifyToken, async (req, res) => {
     res.json({ success: true, message: `Загружено ${inserted} вопросов` });
   } catch (error) {
     console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Загрузка вопросов из TXT файла (с категориями)
+router.post('/questions/upload-txt', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const { text, tourType } = req.body;
+    
+    if (!text || !tourType) {
+      return res.status(400).json({ success: false, message: 'Не указан текст или тип тура' });
+    }
+    
+    let inserted = 0;
+    
+    if (tourType === 'qualification') {
+      const lines = text.split('\n').filter(line => line.trim());
+      let currentQuestion = null;
+      let options = {};
+      let correctAnswer = '';
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.match(/^\d+\./)) {
+          if (currentQuestion) {
+            await query(`
+              INSERT INTO qualification_questions 
+              (question_text, option_a, option_b, option_c, option_d, correct_answer)
+              VALUES (?, ?, ?, ?, ?, ?)
+            `, [
+              currentQuestion,
+              options.A || '',
+              options.B || '',
+              options.C || '',
+              options.D || '',
+              correctAnswer
+            ]);
+            inserted++;
+          }
+          currentQuestion = trimmed.replace(/^\d+\.\s*/, '');
+          options = {};
+          correctAnswer = '';
+        } else if (trimmed.match(/^[A-Da-d]\)/)) {
+          const key = trimmed.charAt(0).toUpperCase();
+          const value = trimmed.replace(/^[A-Da-d]\)\s*/, '');
+          options[key] = value;
+        } else if (trimmed.toLowerCase().includes('ответ:')) {
+          const match = trimmed.match(/ответ:\s*([A-Da-d])/i);
+          if (match) {
+            correctAnswer = match[1].toUpperCase();
+          }
+        }
+      }
+      
+      if (currentQuestion) {
+        await query(`
+          INSERT INTO qualification_questions 
+          (question_text, option_a, option_b, option_c, option_d, correct_answer)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [
+          currentQuestion,
+          options.A || '',
+          options.B || '',
+          options.C || '',
+          options.D || '',
+          correctAnswer
+        ]);
+        inserted++;
+      }
+      
+    } else if (tourType === 'final') {
+      const lines = text.split('\n').filter(line => line.trim());
+      let currentCategory = null;
+      let currentQuestion = null;
+      let currentAnswer = '';
+      let questionsInCategory = 0;
+      
+      // Очищаем старые категории и вопросы
+      await query('DELETE FROM final_questions');
+      await query('DELETE FROM final_categories');
+      await query('ALTER TABLE final_categories AUTO_INCREMENT = 1');
+      await query('ALTER TABLE final_questions AUTO_INCREMENT = 1');
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        
+        if (!trimmed.match(/^\d+\./) && 
+            !trimmed.match(/^[A-Da-d]\)/) && 
+            !trimmed.toLowerCase().includes('ответ:') && 
+            trimmed.length > 0 &&
+            !trimmed.match(/^\s*$/) &&
+            trimmed !== '---' &&
+            trimmed !== '___') {
+          
+          if (currentQuestion && currentCategory) {
+            const points = [100, 200, 300, 400, 500][questionsInCategory % 5] || 100;
+            await query(`
+              INSERT INTO final_questions 
+              (category_id, value_points, question_text, correct_answer)
+              VALUES (?, ?, ?, ?)
+            `, [
+              currentCategory,
+              points,
+              currentQuestion,
+              currentAnswer
+            ]);
+            inserted++;
+            questionsInCategory++;
+          }
+          
+          const categoryName = trimmed.replace(/^[\d\s\.\-]+/, '').trim();
+          
+          const existingCategory = await query('SELECT id FROM final_categories WHERE name = ?', [categoryName]);
+          if (existingCategory.length > 0) {
+            currentCategory = existingCategory[0].id;
+          } else {
+            const result = await query(
+              'INSERT INTO final_categories (name, display_order) VALUES (?, ?)',
+              [categoryName, 0]
+            );
+            currentCategory = result.insertId;
+            console.log(`📂 Создана категория: ${categoryName} (ID: ${currentCategory})`);
+          }
+          
+          currentQuestion = null;
+          currentAnswer = '';
+          questionsInCategory = 0;
+          continue;
+        }
+        
+        if (trimmed.match(/^\d+\./)) {
+          if (currentQuestion && currentCategory) {
+            const points = [100, 200, 300, 400, 500][questionsInCategory % 5] || 100;
+            await query(`
+              INSERT INTO final_questions 
+              (category_id, value_points, question_text, correct_answer)
+              VALUES (?, ?, ?, ?)
+            `, [
+              currentCategory,
+              points,
+              currentQuestion,
+              currentAnswer
+            ]);
+            inserted++;
+            questionsInCategory++;
+          }
+          currentQuestion = trimmed.replace(/^\d+\.\s*/, '');
+          currentAnswer = '';
+        } else if (trimmed.toLowerCase().includes('ответ:')) {
+          const match = trimmed.match(/ответ:\s*(.+)/i);
+          if (match) {
+            currentAnswer = match[1].trim();
+          }
+        }
+      }
+      
+      if (currentQuestion && currentCategory) {
+        const points = [100, 200, 300, 400, 500][questionsInCategory % 5] || 100;
+        await query(`
+          INSERT INTO final_questions 
+          (category_id, value_points, question_text, correct_answer)
+          VALUES (?, ?, ?, ?)
+        `, [
+          currentCategory,
+          points,
+          currentQuestion,
+          currentAnswer
+        ]);
+        inserted++;
+        questionsInCategory++;
+      }
+      
+      const categories = await query('SELECT id FROM final_categories ORDER BY id');
+      for (let i = 0; i < categories.length; i++) {
+        await query('UPDATE final_categories SET display_order = ? WHERE id = ?', [i + 1, categories[i].id]);
+      }
+    }
+    
+    res.json({ success: true, message: `Загружено ${inserted} вопросов` });
+  } catch (error) {
+    console.error('❌ Ошибка загрузки вопросов из TXT:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -461,6 +421,200 @@ router.delete('/questions/:id', verifyToken, async (req, res) => {
   }
 });
 
+// ============================================================
+// УПРАВЛЕНИЕ ФИНАЛЬНЫМИ ВОПРОСАМИ
+// ============================================================
+
+// Получить все категории финала
+router.get('/final-categories', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const categories = await query(`
+      SELECT 
+        fc.*,
+        COUNT(fq.id) as questions_count
+      FROM final_categories fc
+      LEFT JOIN final_questions fq ON fc.id = fq.category_id
+      GROUP BY fc.id
+      ORDER BY fc.display_order
+    `);
+    
+    res.json({ success: true, data: categories });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Добавить категорию
+router.post('/final-categories', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const { name } = req.body;
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Название категории обязательно' });
+    }
+    
+    const count = await query('SELECT COUNT(*) as count FROM final_categories');
+    if (count[0].count >= 3) {
+      return res.status(400).json({ success: false, message: 'Максимум 3 категории' });
+    }
+    
+    const existing = await query('SELECT id FROM final_categories WHERE name = ?', [name.trim()]);
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Категория с таким названием уже существует' });
+    }
+    
+    const result = await query(
+      'INSERT INTO final_categories (name, display_order) VALUES (?, ?)',
+      [name.trim(), count[0].count + 1]
+    );
+    
+    res.json({ 
+      success: true, 
+      data: { id: result.insertId, name: name.trim(), display_order: count[0].count + 1 },
+      message: 'Категория добавлена'
+    });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Удалить категорию (вместе с вопросами)
+router.delete('/final-categories/:id', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const { id } = req.params;
+    
+    const questions = await query('SELECT id FROM final_questions WHERE category_id = ?', [id]);
+    if (questions.length > 0) {
+      await query('DELETE FROM final_questions WHERE category_id = ?', [id]);
+    }
+    
+    await query('DELETE FROM final_categories WHERE id = ?', [id]);
+    
+    const categories = await query('SELECT id FROM final_categories ORDER BY display_order');
+    for (let i = 0; i < categories.length; i++) {
+      await query('UPDATE final_categories SET display_order = ? WHERE id = ?', [i + 1, categories[i].id]);
+    }
+    
+    res.json({ success: true, message: 'Категория удалена' });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Получить вопросы по категории
+router.get('/final-questions/:categoryId', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const { categoryId } = req.params;
+    
+    const questions = await query(`
+      SELECT * FROM final_questions 
+      WHERE category_id = ?
+      ORDER BY value_points
+    `, [categoryId]);
+    
+    res.json({ success: true, data: questions });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Добавить вопрос в категорию
+router.post('/final-questions', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const { category_id, question_text, correct_answer, value_points } = req.body;
+    
+    if (!category_id || !question_text || !correct_answer) {
+      return res.status(400).json({ success: false, message: 'Все поля обязательны' });
+    }
+    
+    const category = await query('SELECT id FROM final_categories WHERE id = ?', [category_id]);
+    if (category.length === 0) {
+      return res.status(404).json({ success: false, message: 'Категория не найдена' });
+    }
+    
+    const count = await query('SELECT COUNT(*) as count FROM final_questions WHERE category_id = ?', [category_id]);
+    if (count[0].count >= 5) {
+      return res.status(400).json({ success: false, message: 'В категории максимум 5 вопросов' });
+    }
+    
+    const existing = await query(
+      'SELECT id FROM final_questions WHERE category_id = ? AND value_points = ?',
+      [category_id, value_points || 100]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Вопрос с такой стоимостью уже существует в этой категории' });
+    }
+    
+    const result = await query(`
+      INSERT INTO final_questions 
+      (category_id, value_points, question_text, correct_answer)
+      VALUES (?, ?, ?, ?)
+    `, [
+      category_id,
+      value_points || 100,
+      question_text.trim(),
+      correct_answer.trim()
+    ]);
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        id: result.insertId,
+        category_id,
+        value_points: value_points || 100,
+        question_text: question_text.trim(),
+        correct_answer: correct_answer.trim()
+      },
+      message: 'Вопрос добавлен'
+    });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Удалить вопрос
+router.delete('/final-questions/:id', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const { id } = req.params;
+    
+    await query('DELETE FROM final_questions WHERE id = ?', [id]);
+    
+    res.json({ success: true, message: 'Вопрос удалён' });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Проверить готовность финала
 router.get('/final-ready', verifyToken, async (req, res) => {
   try {
@@ -482,7 +636,7 @@ router.get('/final-ready', verifyToken, async (req, res) => {
       questionsCount += count[0].count;
     }
     
-    const isReady = categoriesCount >= 3 && categoriesWith5Questions >= 3 && questionsCount >= 15;
+    const isReady = categoriesCount >= 3 && categoriesWith5Questions >= 3;
     
     res.json({ 
       success: true, 
@@ -491,7 +645,7 @@ router.get('/final-ready', verifyToken, async (req, res) => {
         questionsCount,
         categoriesWith5Questions,
         isReady,
-        message: isReady ? '✅ Финал готов к запуску!' : `❌ Не хватает категорий или вопросов (нужно 3 категории по 5 вопросов)`
+        message: isReady ? '✅ Финал готов к запуску!' : '❌ Не хватает категорий или вопросов'
       }
     });
   } catch (error) {
@@ -501,7 +655,154 @@ router.get('/final-ready', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-// УПРАВЛЕНИЕ ИГРАМИ
+// УПРАВЛЕНИЕ ВОПРОСАМИ (ОТОБРАЖЕНИЕ И ОЧИСТКА)
+// ============================================================
+
+// Получить все вопросы отборочного тура с пагинацией
+router.get('/qualification-questions', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const questions = await query(`
+      SELECT id, question_text, option_a, option_b, option_c, option_d, correct_answer, is_active, created_at
+      FROM qualification_questions 
+      ORDER BY id
+    `);
+    
+    res.json({ success: true, data: questions });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Удалить один вопрос отборочного тура
+router.delete('/qualification-questions/:id', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const { id } = req.params;
+    
+    const question = await query('SELECT id FROM qualification_questions WHERE id = ?', [id]);
+    if (question.length === 0) {
+      return res.status(404).json({ success: false, message: 'Вопрос не найден' });
+    }
+    
+    await query('DELETE FROM qualification_questions WHERE id = ?', [id]);
+    
+    res.json({ success: true, message: 'Вопрос удалён' });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Очистить все вопросы отборочного тура
+router.delete('/qualification-questions', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const count = await query('SELECT COUNT(*) as count FROM qualification_questions');
+    
+    await query('DELETE FROM qualification_questions');
+    await query('ALTER TABLE qualification_questions AUTO_INCREMENT = 1');
+    
+    res.json({ 
+      success: true, 
+      message: `Удалено ${count[0].count} вопросов`,
+      deletedCount: count[0].count
+    });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Получить все вопросы финала с категориями
+router.get('/final-questions-all', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const questions = await query(`
+      SELECT 
+        fq.id,
+        fq.category_id,
+        fc.name as category_name,
+        fq.value_points,
+        fq.question_text,
+        fq.correct_answer,
+        fq.is_active,
+        fq.created_at
+      FROM final_questions fq
+      JOIN final_categories fc ON fq.category_id = fc.id
+      ORDER BY fc.display_order, fq.value_points
+    `);
+    
+    res.json({ success: true, data: questions });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Удалить один вопрос финала
+router.delete('/final-questions/:id', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const { id } = req.params;
+    
+    const question = await query('SELECT id FROM final_questions WHERE id = ?', [id]);
+    if (question.length === 0) {
+      return res.status(404).json({ success: false, message: 'Вопрос не найден' });
+    }
+    
+    await query('DELETE FROM final_questions WHERE id = ?', [id]);
+    
+    res.json({ success: true, message: 'Вопрос удалён' });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Очистить все вопросы финала (и категории)
+router.delete('/final-questions', verifyToken, async (req, res) => {
+  try {
+    if (!(await isAdmin(req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Нет доступа' });
+    }
+    
+    const count = await query('SELECT COUNT(*) as count FROM final_questions');
+    
+    await query('DELETE FROM final_questions');
+    await query('DELETE FROM final_categories');
+    await query('ALTER TABLE final_questions AUTO_INCREMENT = 1');
+    await query('ALTER TABLE final_categories AUTO_INCREMENT = 1');
+    
+    res.json({ 
+      success: true, 
+      message: `Удалено ${count[0].count} вопросов и все категории`,
+      deletedCount: count[0].count
+    });
+  } catch (error) {
+    console.error('❌ Ошибка:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// УПРАВЛЕНИЕ ИГРАМИ (С ФИНАЛЬНЫМИ ЛОББИ)
 // ============================================================
 
 router.get('/games', verifyToken, async (req, res) => {
@@ -510,16 +811,23 @@ router.get('/games', verifyToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Нет доступа' });
     }
     
-    const qualGames = await query(`
-      SELECT * FROM game_sessions 
-      WHERE type = 'qualification' 
-      ORDER BY created_at DESC
+    // Получаем все сессии, группируем по типу
+    const sessions = await query(`
+      SELECT 
+        gs.*,
+        COUNT(sp.id) as total_teams,
+        SUM(sp.is_ready) as ready_teams,
+        GROUP_CONCAT(DISTINCT t.name SEPARATOR ', ') as team_names
+      FROM game_sessions gs
+      LEFT JOIN session_participants sp ON gs.id = sp.session_id
+      LEFT JOIN teams t ON sp.team_id = t.id
+      WHERE gs.status IN ('waiting', 'ready', 'active')
+      GROUP BY gs.id
+      ORDER BY gs.created_at DESC
     `);
-    const finalGames = await query(`
-      SELECT * FROM game_sessions 
-      WHERE type = 'final' 
-      ORDER BY created_at DESC
-    `);
+    
+    const qualGames = sessions.filter(s => s.type === 'qualification');
+    const finalGames = sessions.filter(s => s.type === 'final');
     
     const finalLobbies = await query(`
       SELECT 
@@ -717,7 +1025,7 @@ router.post('/videos', verifyToken, async (req, res) => {
 });
 
 // ============================================================
-// ДЕБАГ-ФУНКЦИИ
+// ДЕБАГ-ФУНКЦИИ ДЛЯ АДМИНОВ
 // ============================================================
 
 // Добавление тестовых команд в финал
@@ -964,6 +1272,11 @@ router.post('/debug/clear-database', verifyToken, async (req, res) => {
     const admin = await query("SELECT * FROM users WHERE email = 'admin@quiz.local'");
     console.log('👤 Админ сохранён:', admin.length > 0 ? 'ДА' : 'НЕТ');
     
+    const categories = await query('SELECT * FROM final_categories');
+    const qualQuestions = await query('SELECT * FROM qualification_questions');
+    const finalQuestions = await query('SELECT * FROM final_questions');
+    const videosData = await query('SELECT * FROM videos');
+    
     await query('SET FOREIGN_KEY_CHECKS = 0');
     
     await query('DELETE FROM final_answers');
@@ -1000,7 +1313,7 @@ router.post('/debug/clear-database', verifyToken, async (req, res) => {
     
     await query('SET FOREIGN_KEY_CHECKS = 1');
     
-    // Восстанавливаем админа
+    // Восстанавливаем данные
     if (admin.length > 0) {
       await query(`
         INSERT INTO users (id, full_name, email, role, team_id, is_finalist, access_code, created_at) 
@@ -1024,7 +1337,106 @@ router.post('/debug/clear-database', verifyToken, async (req, res) => {
       console.log(`✅ Создан новый админ (ID: ${result.insertId})`);
     }
     
-    // Создаём финальное лобби
+    // Восстанавливаем категории
+    if (categories.length > 0) {
+      for (const cat of categories) {
+        await query(`
+          INSERT INTO final_categories (id, name, display_order, is_active, created_at) 
+          VALUES (?, ?, ?, ?, ?)
+        `, [cat.id, cat.name, cat.display_order || 0, cat.is_active || 1, cat.created_at || new Date()]);
+      }
+    } else {
+      await query(`
+        INSERT INTO final_categories (id, name, display_order) VALUES
+        (1, 'Кодировка Фано', 1),
+        (2, 'Количество информации', 2),
+        (3, 'Комбинаторика', 3)
+      `);
+    }
+    
+    // Восстанавливаем вопросы
+    if (qualQuestions.length > 0) {
+      for (const q of qualQuestions) {
+        await query(`
+          INSERT INTO qualification_questions (id, question_text, option_a, option_b, option_c, option_d, correct_answer, is_active, created_at) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [q.id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_answer, q.is_active || 1, q.created_at || new Date()]);
+      }
+    } else {
+      await query(`
+        INSERT INTO qualification_questions (question_text, option_a, option_b, option_c, option_d, correct_answer) VALUES
+        ('Босс заблокировал базу данных. Таблица «Отделы» (ID, Название): (1, IT), (2, HR), (3, Finance). Таблица «Сотрудники» (ID, Имя, Отдел_ID): (1, Анна, 1), (2, Борис, 2), (3, Вера, 1), (4, Глеб, NULL). Запрос: SELECT COUNT(DISTINCT o.ID) FROM Отделы o LEFT JOIN Сотрудники s ON o.ID = s.Отдел_ID WHERE s.ID IS NOT NULL; Сколько отделов попадёт в результат?', '1', '2', '3', '4', 'B'),
+        ('Босс утверждает, что его алгоритм сжатия идеален. Какой минимальный объём памяти в битах нужен для хранения числа 10^6 при оптимальном кодировании целых без знака?', '16', '20', '24', '32', 'B'),
+        ('Системный администратор нашёл логическую бомбу. При каком X выражение (X > 100) ИЛИ (X < 50) И (X mod 2 = 1) ложно?', '101', '75', '49', '50', 'D'),
+        ('Босс зашифровал файл зарплат. Ключ — слово из 6 букв слова «АЛГОРИТМ» без повторений. Сколько вариантов ключа?', '56', '336', '1680', '20160', 'D'),
+        ('Чтобы восстановить данные, нужна контрольная сумма. Сообщение из 500 символов, алфавит 16 символов. Каков информационный объём в байтах?', '125', '250', '500', '1000', 'B'),
+        ('Босс написал вредоносный код. Что выведет программа?\n\ndef evil(x):\n    if x == 0:\n        return 1\n    else:\n        return evil(x-1) + evil(x-1)\nprint(evil(4))', '4', '8', '16', '32', 'C'),
+        ('Вирус босса использует рекурсию. Сколько вызовов функции при F(5)?\n\ndef F(n):\n    if n <= 1: return 1\n    else: return F(n-1) + F(n-2)', '15', '9', '8', '5', 'A'),
+        ('Босс обрабатывает данные через стек. Операции: push(1), push(2), pop(), push(3), push(4), pop(), pop(), pop(). Последовательность извлечённых элементов?', '2, 4, 3, 1', '2, 4, 1, 3', '1, 2, 3, 4', '2, 3, 4, 1', 'A'),
+        ('Для взлома нужно перебрать пароли из цифр 1, 2, 3, 4, 5, где 1 и 2 не стоят рядом. Сколько перестановок?', '24', '48', '72', '96', 'C'),
+        ('Вредоносный код ищет данные бинарным поиском в массиве из 1024 элементов. Сколько сравнений в худшем случае?', '10', '11', '512', '1024', 'B'),
+        ('Босс испортил цветовую схему. Сколько цветов кодируется 8-битной глубиной в модели RGB?', '256', '16777216', '65536', '2097152', 'B'),
+        ('Восстанавливается логотип. Растр 2048×1024, палитра 256 цветов. Минимальный объём в Кбайтах без сжатия?', '256', '512', '1024', '2048', 'D'),
+        ('Анимация логотипа: видео 1920×1080, 24 бита/пиксель, 30 кадров/с. Пропускная способность в Мбит/с без сжатия?', '100', '500', '1500', '3000', 'C'),
+        ('Босс меняет шрифты. Неравномерный код: A=0, B=10, C=110, D=111. Минимальная длина кода для E при сохранении префиксного условия?', '3', '4', '2', '1', 'B'),
+        ('Водяной знак: сколько пикселей в 4К (3840×2160)?', '4 млн', '8 млн', '16 млн', '33 млн', 'B'),
+        ('Босс уничтожил таблицу с SQL-запросами. Таблица «Задачи» (ID, Статус). Запрос: SELECT Статус, COUNT(*) FROM Задачи GROUP BY Статус HAVING COUNT(*) > 3. Что вернёт запрос?', 'Все статусы', 'Только статусы с более чем 3 задачами', 'Количество всех задач', 'Только статус с максимумом задач', 'B'),
+        ('Злой босс отправил письмо с угрозой увольнения. Какой протокол используется для отправки писем?', 'HTTP', 'FTP', 'SMTP', 'TCP', 'C'),
+        ('В системе босса IP-адрес 192.168.1.0 с маской 255.255.255.0. Сколько устройств можно подключить?', '254', '256', '128', '512', 'A'),
+        ('Босс написал функцию, которая вызывает бесконечную рекурсию. Какая ошибка возникнет?', 'SyntaxError', 'RecursionError', 'TypeError', 'ValueError', 'B'),
+        ('Для защиты от босса используется хеширование. Пароль «qwerty» хранится как хеш MD5 длиной 128 бит. Сколько это в байтах?', '8', '16', '32', '64', 'B'),
+        ('Босс взломал сервер и скачивает файлы. Скорость канала 100 Мбит/с. За сколько секунд скачается файл размером 1 Гбайт?', '8', '80', '800', '10', 'B'),
+        ('В коде босса найдена уязвимость SQL-инъекции. Какой символ часто используется для комментирования остатка SQL-запроса?', '--', '//', '#', '/*', 'A'),
+        ('Босс закодировал сообщение азбукой Морзе. Сколько различных символов можно закодировать последовательностями из не более чем 3 точек и тире?', '8', '14', '15', '26', 'B'),
+        ('Дизайнеры восстанавливают UI. Сколько разных оттенков серого можно закодировать 8 битами?', '128', '256', '512', '64', 'B'),
+        ('Босс пытается удалить все бэкапы. Резервное копирование выполняется по расписанию каждые 6 часов. Сколько копий создаётся за неделю?', '7', '14', '28', '42', 'C')
+      `);
+    }
+    
+    if (finalQuestions.length > 0) {
+      for (const q of finalQuestions) {
+        await query(`
+          INSERT INTO final_questions (id, category_id, value_points, question_text, correct_answer, is_active, created_at) 
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [q.id, q.category_id, q.value_points, q.question_text, q.correct_answer, q.is_active || 1, q.created_at || new Date()]);
+      }
+    } else {
+      await query(`
+        INSERT INTO final_questions (category_id, value_points, question_text, correct_answer) VALUES
+        (1, 100, 'По каналу связи передаются сообщения, содержащие только восемь букв: К, Л, М, Н, О, П, Р, С. Для передачи используется двоичный код, удовлетворяющий условию Фано. Кодовые слова для некоторых букв известны: К — 101, Л — 01, М — 000. Какое наименьшее количество двоичных знаков потребуется для кодирования слова КОЛОСОК?', '18'),
+        (1, 200, 'По каналу связи передаются сообщения, содержащие только шесть букв: А, Б, В, Г, Д, Е. Для передачи используется двоичный код, удовлетворяющий условию Фано. Кодовые слова для трёх букв известны: А — 10, Б — 110, В — 111. Какое наименьшее количество двоичных знаков потребуется для кодирования слова ГДЕЕДА?', '15'),
+        (1, 300, 'По каналу связи передаются сообщения, содержащие только шесть букв: А, Б, В, Г, Д, Е. Для передачи используется двоичный код, удовлетворяющий обратному условию Фано. Кодовые слова для букв А, Б, В известны: А — 01, Б — 011, В — 111. Какое наименьшее количество двоичных знаков потребуется для кодирования слова ГДЕД?', '10'),
+        (1, 400, 'По каналу связи передаются сообщения, содержащие только восемь букв: А, Б, В, Г, Д, Е, Ж, З. Для передачи используется двоичный код, удовлетворяющий условию Фано. Кодовые слова для букв А, Б, В, Г известны: А — 00, Б — 010, В — 110, Г — 111. Какое наименьшее количество двоичных знаков потребуется для кодирования слова ДЕЖЕЗ?', '17'),
+        (1, 500, 'По каналу связи передаются сообщения, содержащие только восемь букв: А, Б, В, Г, Д, Е, Ж, З. Для передачи используется двоичный код, удовлетворяющий условию Фано. Кодовые слова для некоторых букв известны: А — 10, Б — 01, В — 001. Какое наименьшее количество двоичных знаков потребуется для кодирования слова ЖАЖДА?', '14'),
+        (2, 100, 'Камера дорожного наблюдения делает цветные фотографии размером 1600×1200 пикселей, используя палитру из 16384 цветов. Снимки сохраняются в памяти камеры, группируются в пакеты по 80 штук и отправляются в центр обработки по каналу связи с пропускной способностью 2 Мбит/сек. На сколько процентов необходимо сжать изображения, чтобы передавать один пакет за 1 минуту? Заголовки и другую служебную информацию не учитывать. В ответе запишите число — округлённый до целого процента сжатия. Знак процента писать не нужно.', '94'),
+        (2, 200, 'Производится одноканальная (моно) звукозапись с частотой дискретизации 22 кГц и 24-битным разрешением. Длительность записи составляет 4 минуты. Файл сжимают и передают по каналу связи со скоростью 51200 бит/с за 30 секунд. На сколько процентов был сжат файл? В ответе запишите целое число процентов. Знак процента не писать.', '99'),
+        (2, 300, 'Автоматическая система генерирует растровые изображения размером 800×600 пикселей с палитрой 256 цветов. Изображения накапливаются, группируются в пакеты по 20 штук и передаются по каналу связи с пропускной способностью 1 Мбайт/сек. На сколько процентов необходимо сжать каждое изображение, чтобы один пакет можно было передать за 4 секунды? Служебную информацию не учитывать. В ответе запишите целое число процентов (при необходимости округлите в большую сторону).', '59'),
+        (2, 400, 'Производится двухканальная (стерео) звукозапись с частотой дискретизации 48 кГц и 16-битным разрешением. Файл сжимают на 80% и передают по каналу связи со скоростью 2 Мбит/сек за 10 секунд. Какова максимальная длительность записи в секундах, которая может быть передана таким образом? В ответе запишите целое число секунд.', '65'),
+        (2, 500, 'У Васи есть два файла: графический и звуковой. Графический файл содержит изображение размером 2048×1536 пикселей с глубиной цвета 24 бита на пиксель. Звуковой файл получен в результате двухканальной (стерео) записи с частотой дискретизации 44,1 кГц и 16-битным разрешением длительностью 2 минуты. Вася сжимает графический файл на 40%, а звуковой — на 50%. Полученные сжатые файлы передаются по каналу связи со скоростью 256 Кбит/с один за другим без перерыва. Сколько секунд займёт передача? В ответе запишите целое число секунд.', '508'),
+        (3, 100, 'Все пятибуквенные слова, составленные из букв А, Б, В, Г, Д, записаны в алфавитном порядке (А, Б, В, Г, Д) и пронумерованы начиная с 1. Под каким номером идёт первое слово, которое содержит ровно две буквы А и не содержит двух одинаковых букв, стоящих рядом?', '133'),
+        (3, 200, 'Все пятибуквенные слова, составленные из букв А, Б, В, Г, Д, записаны в алфавитном порядке (А, Б, В, Г, Д) и пронумерованы начиная с 1. Под каким номером идёт первое слово, которое содержит ровно одну букву Г и ровно одну букву Д и не содержит двух одинаковых букв, стоящих рядом?', '145'),
+        (3, 300, 'Все шестибуквенные слова, составленные из букв А, Б, В, Г, записаны в алфавитном порядке (А, Б, В, Г) и пронумерованы начиная с 1. Под каким номером идёт первое слово, которое содержит ровно две буквы А и ровно две буквы Б и не содержит двух одинаковых букв, стоящих рядом?', '284'),
+        (3, 400, 'Все шестибуквенные слова, составленные из букв А, Б, В, Г, Д, Е, Ж, записаны в алфавитном порядке (А, Б, В, Г, Д, Е, Ж) и пронумерованы начиная с 1. Под каким номером идёт первое слово, которое не содержит буквы Ж, содержит ровно одну букву Е и не содержит двух одинаковых букв, стоящих рядом?', '2456'),
+        (3, 500, 'Все пятибуквенные слова, составленные из букв А, Б, В, Г, Д, Е, Ё, записаны в алфавитном порядке (А, Б, В, Г, Д, Е, Ё) и пронумерованы начиная с 1. Под каким номером идёт первое слово, которое содержит ровно две гласные (А, Е, Ё), ровно одну букву Б и не содержит двух одинаковых букв, стоящих рядом?', '361')
+      `);
+    }
+    
+    if (videosData.length > 0) {
+      for (const v of videosData) {
+        await query(`
+          INSERT INTO videos (id, title, url, type, is_active, created_at) 
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [v.id, v.title, v.url, v.type, v.is_active || 1, v.created_at || new Date()]);
+      }
+    } else {
+      await query(`
+        INSERT INTO videos (title, url, type) VALUES
+        ('Вступление к игре', '/videos/intro.mp4', 'intro'),
+        ('Переход между турами', '/videos/between_tours.mp4', 'between_tours'),
+        ('Финальное видео', '/videos/final.mp4', 'outro')
+      `);
+    }
+    
     await query(
       'INSERT INTO final_lobbies (session_id, game_started, game_finished) VALUES (?, ?, ?)',
       ['FINAL', false, false]
@@ -1035,7 +1447,8 @@ router.post('/debug/clear-database', verifyToken, async (req, res) => {
     
     res.json({ 
       success: true, 
-      message: 'База данных полностью очищена и восстановлена!'
+      message: 'База данных полностью очищена и восстановлена!',
+      sessionsRemoved: checkSessions.length === 0
     });
   } catch (error) {
     console.error('❌ Ошибка очистки БД:', error);

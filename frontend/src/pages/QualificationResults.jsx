@@ -1,10 +1,11 @@
+// frontend/src/pages/QualificationResults.jsx
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { completeQualification, getTeamFinalistStatus, updateTeamScore, getTeam } from '../api/client';
 
-// SVG иконка для трофея
 const TrophyIcon = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
@@ -31,23 +32,45 @@ export default function QualificationResults() {
   useEffect(() => {
     const loadResults = async () => {
       try {
+        console.log('📊 Location state:', location.state);
+        
+        // Если есть данные из location.state
         if (location.state?.teamScore !== undefined) {
           setResults(location.state);
+          // Обновляем счёт в БД
           await updateTeamScore(teamId, location.state.teamScore);
+          
+          // Если пришёл isFinalist из state
+          if (location.state.isFinalist) {
+            setIsFinalist(true);
+          }
         } else {
+          // Пытаемся загрузить из localStorage
           const savedResults = localStorage.getItem(`team_${teamId}`);
           if (savedResults) {
             const data = JSON.parse(savedResults);
-            setResults({ teamScore: data.score, timeSpent: data.timeSpent, position: data.position });
+            setResults({ 
+              teamScore: data.score, 
+              timeSpent: data.timeSpent, 
+              position: data.position || 1 
+            });
           }
         }
         
+        // Проверяем статус финалиста в БД
         try {
           const teamRes = await getTeam(teamId);
           if (teamRes.data?.data) {
             if (teamRes.data.data.is_finalist) {
               setIsAlreadyFinalist(true);
               setIsFinalist(true);
+            }
+            // Если есть qualifying_score, используем его
+            if (teamRes.data.data.qualifyingScore > 0 && !results) {
+              setResults(prev => ({
+                ...prev,
+                teamScore: teamRes.data.data.qualifyingScore
+              }));
             }
           }
         } catch (err) {
@@ -75,7 +98,7 @@ export default function QualificationResults() {
     const autoComplete = async () => {
       if (isAlreadyFinalist || autoCompleted) return;
       
-      const myPosition = results?.position || 1;
+      const myPosition = results?.position || 999;
       const isInTop3 = myPosition <= 3;
       
       if (isInTop3 && results?.teamScore > 0) {

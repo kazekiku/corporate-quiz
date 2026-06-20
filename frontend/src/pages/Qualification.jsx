@@ -49,7 +49,7 @@ export default function Qualification() {
         setTeam(teamData);
         
         const config = {
-          totalQuestions: 4,
+          totalQuestions: 25,
           pointsPerQuestion: 10,
           timeLimit: 3600,
           name: 'Отборочный тур'
@@ -224,7 +224,7 @@ export default function Qualification() {
             timeSpent: gameConfig.timeLimit - timeLeft, 
             questions,
             position: myPosition + 1,
-            isFinalist,
+            isFinalist: isFinalist,
             totalTeams: currentRating.length
           }
         });

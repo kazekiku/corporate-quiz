@@ -9,6 +9,8 @@ export default function IntroVideo() {
   const { user, loading } = useAuth();
   const videoRef = useRef(null);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showPlayButton, setShowPlayButton] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -18,27 +20,26 @@ export default function IntroVideo() {
       return;
     }
 
-    // Проверяем, не смотрел ли уже видео
-    const watched = localStorage.getItem('intro_video_watched');
-    if (watched === 'true') {
-      console.log('⏭️ Видео уже просмотрено, пропускаем');
-      navigate('/main');
-      return;
-    }
-
-    // Пробуем запустить видео автоматически
     if (videoRef.current) {
-      videoRef.current.play().catch(err => {
-        console.log('Автовоспроизведение заблокировано, ждём клика');
-      });
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            setShowPlayButton(false);
+          })
+          .catch(() => {
+            setShowPlayButton(true);
+            setIsPlaying(false);
+          });
+      }
     }
 
-    // Если видео не запустилось через 5 секунд - пробуем ещё раз
     const timeout = setTimeout(() => {
-      if (videoRef.current && !videoEnded) {
-        videoRef.current.play().catch(() => {});
+      if (videoRef.current && !videoEnded && !isPlaying) {
+        setShowPlayButton(true);
       }
-    }, 5000);
+    }, 3000);
 
     return () => clearTimeout(timeout);
   }, [user, loading]);
@@ -46,14 +47,23 @@ export default function IntroVideo() {
   const handleVideoEnd = () => {
     if (videoEnded) return;
     setVideoEnded(true);
-    localStorage.setItem('intro_video_watched', 'true');
     navigate('/main');
   };
 
+  const handlePlay = () => {
+    if (videoRef.current) {
+      videoRef.current.play()
+        .then(() => {
+          setIsPlaying(true);
+          setShowPlayButton(false);
+        })
+        .catch(() => {});
+    }
+  };
+
   const handleClick = () => {
-    // Если видео на паузе - запускаем
-    if (videoRef.current && videoRef.current.paused) {
-      videoRef.current.play().catch(() => {});
+    if (!isPlaying && videoRef.current) {
+      handlePlay();
     }
   };
 
@@ -80,7 +90,6 @@ export default function IntroVideo() {
         ref={videoRef}
         className="fullscreen-video-element"
         autoPlay
-        muted
         playsInline
         onEnded={handleVideoEnd}
       >
@@ -88,16 +97,7 @@ export default function IntroVideo() {
         <p>Ваш браузер не поддерживает видео</p>
       </video>
       
-      {/* Индикатор загрузки, пока видео не началось */}
-      {!videoEnded && (
-        <div className="video-loading-indicator">
-          <div className="loading-spinner">
-            <div className="loading-dot" />
-            <div className="loading-dot" />
-            <div className="loading-dot" />
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }

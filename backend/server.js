@@ -39,36 +39,23 @@ app.use('/api/debug', debugRoutes);
 // ============================================================
 app.get('/api/rating', verifyToken, async (req, res) => {
     try {
-        // Проверяем, существует ли VIEW
-        const viewExists = await query(`
-            SELECT COUNT(*) as count 
-            FROM information_schema.VIEWS 
-            WHERE TABLE_SCHEMA = 'corporate_quiz' 
-            AND TABLE_NAME = 'rating_view'
+        const teams = await query(`
+            SELECT 
+                t.id,
+                t.name,
+                COALESCE(t.qualifying_score, 0) as score,
+                t.is_finalist,
+                CASE 
+                    WHEN t.is_finalist = 1 THEN 'Финалист'
+                    WHEN t.qualifying_score > 0 THEN 'Участник'
+                    ELSE 'Новый'
+                END as status
+            FROM teams t
+            WHERE t.is_activated = 1
+            ORDER BY t.qualifying_score DESC
         `);
         
-        let teams;
-        if (viewExists[0].count > 0) {
-            teams = await query('SELECT * FROM rating_view');
-        } else {
-            // Если VIEW нет - делаем прямой запрос
-            teams = await query(`
-                SELECT 
-                    t.id,
-                    t.name,
-                    COALESCE(qp.team_score, 0) as score,
-                    t.is_finalist,
-                    CASE 
-                        WHEN t.is_finalist = 1 THEN 'Финалист'
-                        WHEN qp.team_score > 0 THEN 'Участник'
-                        ELSE 'Новый'
-                    END as status
-                FROM teams t
-                LEFT JOIN qualification_progress qp ON t.id = qp.team_id AND qp.finished = 1
-                WHERE t.is_activated = 1
-                ORDER BY score DESC
-            `);
-        }
+        console.log(`📊 Рейтинг: ${teams.length} команд`);
         
         res.json({ success: true, data: teams });
     } catch (error) {
@@ -76,10 +63,6 @@ app.get('/api/rating', verifyToken, async (req, res) => {
         res.status(500).json({ success: false, message: 'Ошибка загрузки рейтинга' });
     }
 });
-
-// ============================================================
-// ДОПОЛНИТЕЛЬНЫЕ МАРШРУТЫ (убираем дубли)
-// ============================================================
 
 // Проверка здоровья
 app.get('/api/health', (req, res) => {

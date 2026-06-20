@@ -13,9 +13,15 @@ import {
   getAdminQuestions,
   uploadQuestions,
   getGames,
-  getVideos,
-  checkFinalReady
+  getQualificationQuestionsAdmin,
+  deleteQualificationQuestion,
+  clearAllQualificationQuestions,
+  getFinalQuestionsAll,
+  clearAllFinalQuestions,
+  deleteFinalQuestion
 } from '../api/client';
+import FinalQuestionsManager from '../components/FinalQuestionsManager';
+import QuestionsList from '../components/QuestionsList';
 
 export default function AdminPanel() {
   const navigate = useNavigate();
@@ -35,10 +41,14 @@ export default function AdminPanel() {
   const [questionTourType, setQuestionTourType] = useState('qualification');
   const [questionText, setQuestionText] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [finalReady, setFinalReady] = useState({ isReady: false, categoriesCount: 0, questionsCount: 0 });
 
   // Дебаг состояния
   const [debugLoading, setDebugLoading] = useState(false);
+
+  // Списки вопросов
+  const [qualificationQuestionsList, setQualificationQuestionsList] = useState([]);
+  const [finalQuestionsList, setFinalQuestionsList] = useState([]);
+  const [listLoading, setListLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -54,21 +64,25 @@ export default function AdminPanel() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [teamsRes, sessionsRes, gamesRes, questionsRes, finalReadyRes] = await Promise.all([
+      const [teamsRes, sessionsRes, gamesRes, questionsRes] = await Promise.all([
         getTeams(),
         getAdminSessions(),
         getGames(),
         getAdminQuestions(),
-        checkFinalReady().catch(() => ({ data: { data: { isReady: false } } }))
       ]);
       
       setTeams(teamsRes.data.data || []);
       setSessions(sessionsRes.data.data || []);
       setFinalLobbies(gamesRes.data.data?.finalLobbies || []);
       setQuestions(questionsRes.data.data || []);
-      setFinalReady(finalReadyRes.data.data || { isReady: false, categoriesCount: 0, questionsCount: 0 });
       
       await refreshStatuses(sessionsRes.data.data || []);
+      
+      // Загружаем списки вопросов
+      await Promise.all([
+        loadQualificationQuestionsList(),
+        loadFinalQuestionsList()
+      ]);
     } catch (err) {
       console.error('Ошибка загрузки данных:', err);
       showToast('Ошибка загрузки данных', 'error');
@@ -90,6 +104,33 @@ export default function AdminPanel() {
       }
     }
     setSessionStatuses(statuses);
+  };
+
+  // Загрузка списков вопросов
+  const loadQualificationQuestionsList = async () => {
+    setListLoading(true);
+    try {
+      const res = await getQualificationQuestionsAdmin();
+      setQualificationQuestionsList(res.data.data || []);
+    } catch (err) {
+      console.error('Ошибка загрузки вопросов:', err);
+      showToast('Ошибка загрузки вопросов', 'error');
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  const loadFinalQuestionsList = async () => {
+    setListLoading(true);
+    try {
+      const res = await getFinalQuestionsAll();
+      setFinalQuestionsList(res.data.data || []);
+    } catch (err) {
+      console.error('Ошибка загрузки финальных вопросов:', err);
+      showToast('Ошибка загрузки финальных вопросов', 'error');
+    } finally {
+      setListLoading(false);
+    }
   };
 
   // ========== УПРАВЛЕНИЕ КОМАНДАМИ ==========
@@ -184,7 +225,7 @@ export default function AdminPanel() {
       if (data.success) {
         showToast(data.message, 'success');
         setQuestionText('');
-        loadData();
+        await loadData();
       } else {
         showToast('Ошибка: ' + data.message, 'error');
       }
@@ -219,7 +260,7 @@ export default function AdminPanel() {
       
       await uploadQuestions(questionsData, questionTourType);
       showToast(`Загружено ${questionsData.length} вопросов!`, 'success');
-      loadData();
+      await loadData();
     } catch (err) {
       showToast('Ошибка загрузки: ' + err.message, 'error');
     } finally {
@@ -248,7 +289,7 @@ export default function AdminPanel() {
         } else {
           showToast(`✅ Добавлено ${data.addedCount} команд (${data.totalCount}/3)`, 'success');
         }
-        loadData();
+        await loadData();
       } else {
         showToast('Ошибка: ' + data.message, 'error');
       }
@@ -276,7 +317,7 @@ export default function AdminPanel() {
       
       if (data.success) {
         showToast('✅ Финал принудительно запущен!', 'success');
-        loadData();
+        await loadData();
       } else {
         showToast('Ошибка: ' + data.message, 'error');
       }
@@ -304,7 +345,7 @@ export default function AdminPanel() {
       
       if (data.success) {
         showToast('✅ Финал принудительно завершён!', 'success');
-        loadData();
+        await loadData();
       } else {
         showToast('Ошибка: ' + data.message, 'error');
       }
@@ -330,7 +371,7 @@ export default function AdminPanel() {
       
       if (data.success) {
         showToast('✅ Вы стали финалистом!', 'success');
-        loadData();
+        await loadData();
       } else {
         showToast('Ошибка: ' + data.message, 'error');
       }
@@ -358,7 +399,7 @@ export default function AdminPanel() {
       
       if (data.success) {
         showToast('✅ Прогресс сброшен!', 'success');
-        loadData();
+        await loadData();
       } else {
         showToast('Ошибка: ' + data.message, 'error');
       }
@@ -386,7 +427,7 @@ export default function AdminPanel() {
       
       if (data.success) {
         showToast('✅ База данных очищена и восстановлена!', 'success');
-        loadData();
+        await loadData();
       } else {
         showToast('Ошибка: ' + data.message, 'error');
       }
@@ -419,7 +460,7 @@ export default function AdminPanel() {
       <div className="admin-card">
         <div className="admin-header">
           <h1>⚙️ Админ-панель</h1>
-          <p>Управление командами, играми и контентом</p>
+          <p>Управление командами и вопросами</p>
         </div>
 
         <div style={{ 
@@ -881,184 +922,145 @@ export default function AdminPanel() {
               </select>
             </div>
 
-            {/* Статус готовности финала */}
-            {questionTourType === 'final' && (
-              <div style={{
-                padding: '12px 16px',
-                borderRadius: '8px',
-                marginBottom: '16px',
-                background: finalReady.isReady ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                border: `1px solid ${finalReady.isReady ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '20px' }}>{finalReady.isReady ? '✅' : '❌'}</span>
-                  <div>
-                    <div style={{ fontWeight: 'bold', color: finalReady.isReady ? '#10b981' : '#ef4444' }}>
-                      {finalReady.isReady ? 'Финал готов к запуску!' : 'Финал НЕ готов'}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
-                      Категории: {finalReady.categoriesCount || 0}/3 | Вопросов: {finalReady.questionsCount || 0}/15
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Загрузка из TXT */}
-            <div style={{ 
-              border: '2px solid rgba(255,255,255,0.1)',
-              borderRadius: '16px',
-              padding: '20px',
-              marginBottom: '20px'
-            }}>
-              <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '12px' }}>
-                📄 Загрузка из текстового файла
-              </h3>
-              
-              <div style={{ 
-                background: 'rgba(255,255,255,0.05)', 
-                borderRadius: '8px', 
-                padding: '12px', 
-                marginBottom: '12px',
-                fontSize: '13px',
-                color: 'rgba(255,255,255,0.5)'
-              }}>
-                <strong style={{ color: 'rgba(255,255,255,0.7)' }}>
-                  {questionTourType === 'qualification' ? 'Формат для отборочного тура:' : 'Формат для финала:'}
-                </strong>
-                <pre style={{ 
-                  margin: '8px 0 0 0', 
-                  padding: '8px', 
-                  background: 'rgba(0,0,0,0.3)', 
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  color: 'rgba(255,255,255,0.6)',
-                  whiteSpace: 'pre-wrap',
-                  fontFamily: 'monospace'
+            {/* Для отборочного тура - загрузка вопросов */}
+            {questionTourType === 'qualification' && (
+              <>
+                {/* Загрузка из TXT */}
+                <div style={{ 
+                  border: '2px solid rgba(255,255,255,0.1)',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  marginBottom: '20px'
                 }}>
-                  {questionTourType === 'qualification' 
-                    ? `1. Текст вопроса
+                  <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '12px' }}>
+                    📄 Загрузка из текстового файла
+                  </h3>
+                  
+                  <div style={{ 
+                    background: 'rgba(255,255,255,0.05)', 
+                    borderRadius: '8px', 
+                    padding: '12px', 
+                    marginBottom: '12px',
+                    fontSize: '13px',
+                    color: 'rgba(255,255,255,0.5)'
+                  }}>
+                    <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Формат для отборочного тура:</strong>
+                    <pre style={{ 
+                      margin: '8px 0 0 0', 
+                      padding: '8px', 
+                      background: 'rgba(0,0,0,0.3)', 
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      color: 'rgba(255,255,255,0.6)',
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'monospace'
+                    }}>
+{`1. Текст вопроса
 A) Вариант A
 B) Вариант B
 C) Вариант C
 D) Вариант D
 Ответ: A
 
-2. Следующий вопрос...`
-                    : `Категория 1
-
-1. Текст вопроса 1
-Ответ: ответ 1
-
-2. Текст вопроса 2
-Ответ: ответ 2
-
-3. Текст вопроса 3
-Ответ: ответ 3
-
-4. Текст вопроса 4
-Ответ: ответ 4
-
-5. Текст вопроса 5
-Ответ: ответ 5
-
-Категория 2
-
-1. Текст вопроса 6
-Ответ: ответ 6
-
-2. Текст вопроса 7
-Ответ: ответ 7
-
-3. Текст вопроса 8
-Ответ: ответ 8
-
-4. Текст вопроса 9
-Ответ: ответ 9
-
-5. Текст вопроса 10
-Ответ: ответ 10
-
-Категория 3
-
-1. Текст вопроса 11
-Ответ: ответ 11
-
-2. Текст вопроса 12
-Ответ: ответ 12
-
-3. Текст вопроса 13
-Ответ: ответ 13
-
-4. Текст вопроса 14
-Ответ: ответ 14
-
-5. Текст вопроса 15
-Ответ: ответ 15`}
-                </pre>
-              </div>
-              
-              <textarea
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                placeholder="Вставьте вопросы в формате выше..."
-                className="admin-input"
-                rows={12}
-                style={{ width: '100%', fontFamily: 'monospace', fontSize: '13px' }}
-              />
-              
-              <button 
-                onClick={handleTxtUpload} 
-                className="btn btn-primary" 
-                style={{ marginTop: '12px' }}
-                disabled={uploading}
-              >
-                {uploading ? 'Загрузка...' : '📤 Загрузить вопросы'}
-              </button>
-            </div>
-            
-            {/* Загрузка из файла */}
-            <div style={{ 
-              border: '2px dashed rgba(255,255,255,0.2)',
-              borderRadius: '16px',
-              padding: '30px',
-              textAlign: 'center',
-              marginBottom: '20px'
-            }}>
-              <input
-                type="file"
-                accept=".json,.csv"
-                onChange={handleFileUpload}
-                disabled={uploading}
-                style={{ display: 'none' }}
-                id="questionFileInput"
-              />
-              <label htmlFor="questionFileInput" style={{ cursor: 'pointer' }}>
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}>📤</div>
-                <div style={{ fontSize: '16px', fontWeight: '500' }}>
-                  {uploading ? 'Загрузка...' : 'Нажмите для загрузки вопросов из файла'}
+2. Следующий вопрос...`}
+                    </pre>
+                  </div>
+                  
+                  <textarea
+                    value={questionText}
+                    onChange={(e) => setQuestionText(e.target.value)}
+                    placeholder="Вставьте вопросы в формате выше..."
+                    className="admin-input"
+                    rows={10}
+                    style={{ width: '100%', fontFamily: 'monospace', fontSize: '13px' }}
+                  />
+                  
+                  <button 
+                    onClick={handleTxtUpload} 
+                    className="btn btn-primary" 
+                    style={{ marginTop: '12px' }}
+                    disabled={uploading}
+                  >
+                    {uploading ? 'Загрузка...' : '📤 Загрузить вопросы'}
+                  </button>
                 </div>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
-                  Поддерживаются JSON и CSV форматы
+                
+                {/* Загрузка из файла */}
+                <div style={{ 
+                  border: '2px dashed rgba(255,255,255,0.2)',
+                  borderRadius: '16px',
+                  padding: '30px',
+                  textAlign: 'center',
+                  marginBottom: '20px'
+                }}>
+                  <input
+                    type="file"
+                    accept=".json,.csv"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                    style={{ display: 'none' }}
+                    id="questionFileInput"
+                  />
+                  <label htmlFor="questionFileInput" style={{ cursor: 'pointer' }}>
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>📤</div>
+                    <div style={{ fontSize: '16px', fontWeight: '500' }}>
+                      {uploading ? 'Загрузка...' : 'Нажмите для загрузки вопросов из файла'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
+                      Поддерживаются JSON и CSV форматы
+                    </div>
+                  </label>
                 </div>
-              </label>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button 
-                onClick={() => loadData()} 
-                className="btn btn-outline"
-              >
-                🔄 Обновить список
-              </button>
-            </div>
-            
-            {questions.length > 0 && (
-              <div style={{ marginTop: '20px' }}>
-                <h3 style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)' }}>
-                  Загружено вопросов: {questions.length}
-                </h3>
-              </div>
+                
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button 
+                    onClick={() => loadData()} 
+                    className="btn btn-outline"
+                  >
+                    🔄 Обновить список
+                  </button>
+                </div>
+
+                {/* Список вопросов отборочного тура */}
+                <div style={{ marginTop: '24px' }}>
+                  <h3 style={{ fontSize: '16px', color: 'rgba(255,255,255,0.7)', marginBottom: '12px' }}>
+                    📋 Текущие вопросы отборочного тура
+                  </h3>
+                  <QuestionsList
+                    questions={qualificationQuestionsList}
+                    type="qualification"
+                    onDelete={deleteQualificationQuestion}
+                    onClearAll={clearAllQualificationQuestions}
+                    onRefresh={loadQualificationQuestionsList}
+                    loading={listLoading}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Для финального тура - менеджер категорий и вопросов */}
+            {questionTourType === 'final' && (
+              <>
+                <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }}>
+                  Добавьте 3 категории и по 5 вопросов в каждую для запуска финала
+                </p>
+                <FinalQuestionsManager />
+
+                {/* Список вопросов финала */}
+                <div style={{ marginTop: '24px' }}>
+                  <h3 style={{ fontSize: '16px', color: 'rgba(255,255,255,0.7)', marginBottom: '12px' }}>
+                    📋 Текущие вопросы финала
+                  </h3>
+                  <QuestionsList
+                    questions={finalQuestionsList}
+                    type="final"
+                    onDelete={deleteFinalQuestion}
+                    onClearAll={clearAllFinalQuestions}
+                    onRefresh={loadFinalQuestionsList}
+                    loading={listLoading}
+                  />
+                </div>
+              </>
             )}
           </div>
         )}

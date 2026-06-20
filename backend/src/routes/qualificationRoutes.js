@@ -9,7 +9,7 @@ const { verifyToken } = require('../middleware/auth');
 router.get('/questions', verifyToken, async (req, res) => {
   try {
     const { gameMode } = req.query;
-    const limit = 4;
+    const limit = 25;
     
     console.log('📚 Запрос вопросов, лимит:', limit);
     
@@ -183,8 +183,12 @@ router.post('/complete/:teamId', verifyToken, async (req, res) => {
             return res.status(404).json({ success: false, message: 'Команда не найдена' });
         }
         
-        const teamScore = team[0].qualifying_score || 0;
+        const progress = await query('SELECT team_score FROM qualification_progress WHERE team_id = ?', [teamId]);
+        const teamScore = progress.length > 0 ? progress[0].team_score : 0;
+        
         console.log(`📊 Команда "${team[0].name}" набрала ${teamScore} баллов`);
+        
+        await query('UPDATE teams SET qualifying_score = ? WHERE id = ?', [teamScore, teamId]);
         
         const allTeams = await query(`
             SELECT id, qualifying_score 
@@ -200,9 +204,9 @@ router.post('/complete/:teamId', verifyToken, async (req, res) => {
             console.log(`🏆 Топ-3 ID: ${top3Ids}, команда ${teamId} в топ-3? ${isFinalist}`);
         }
         
-        if (teamScore === 40) {
+        if (teamScore === 250) {
             isFinalist = true;
-            console.log(`🏆 Команда набрала максимум 40 баллов, автоматически финалист!`);
+            console.log(`🏆 Команда набрала максимум 250 баллов, автоматически финалист!`);
         }
         
         await query('UPDATE teams SET is_finalist = ? WHERE id = ?', [isFinalist ? 1 : 0, teamId]);
@@ -250,8 +254,8 @@ router.post('/complete/:teamId', verifyToken, async (req, res) => {
             }
         }
         
-        const updatedTeam = await query('SELECT is_finalist FROM teams WHERE id = ?', [teamId]);
-        console.log(`✅ После обновления: is_finalist = ${updatedTeam[0]?.is_finalist}`);
+        const updatedTeam = await query('SELECT is_finalist, qualifying_score FROM teams WHERE id = ?', [teamId]);
+        console.log(`✅ После обновления: is_finalist = ${updatedTeam[0]?.is_finalist}, qualifying_score = ${updatedTeam[0]?.qualifying_score}`);
         
         res.json({ 
             success: true, 

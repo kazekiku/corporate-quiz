@@ -1,3 +1,5 @@
+// frontend/src/pages/Lobby.jsx
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getTeam } from '../api/client';
@@ -59,6 +61,12 @@ export default function Lobby() {
       setAllReady(data.allReady);
       setTotalTeams(data.totalTeams || 0);
       setReadyTeams(data.readyTeams || 0);
+      
+      // Если сессия уже активна - переходим в игру
+      if (data.session.status === 'active') {
+        navigate(`/qualification/${teamId}`);
+        return;
+      }
       
       showToast('Вы вошли в лобби! Нажмите "Приготовиться"', 'info');
     } catch (err) {
@@ -183,7 +191,7 @@ export default function Lobby() {
               <div className="rule-item">
                 <div className="rule-icon">❓</div>
                 <div className="rule-content">
-                  <div className="rule-title">5 вопросов</div>
+                  <div className="rule-title">4 вопроса</div>
                   <div className="rule-desc">Проверьте свои знания</div>
                 </div>
               </div>
@@ -199,15 +207,15 @@ export default function Lobby() {
               <div className="rule-item">
                 <div className="rule-icon">⏱</div>
                 <div className="rule-content">
-                  <div className="rule-title">10 минут</div>
-                  <div className="rule-desc">На один вопрос</div>
+                  <div className="rule-title">60 минут</div>
+                  <div className="rule-desc">На весь тур</div>
                 </div>
               </div>
               
               <div className="rule-item">
                 <div className="rule-icon">🏆</div>
                 <div className="rule-content">
-                  <div className="rule-title">50 баллов</div>
+                  <div className="rule-title">40 баллов</div>
                   <div className="rule-desc">Максимальный результат</div>
                 </div>
               </div>

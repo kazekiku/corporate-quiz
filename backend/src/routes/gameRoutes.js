@@ -8,6 +8,11 @@ const { verifyToken } = require('../middleware/auth');
 // ============================================================
 // СОЗДАНИЕ СЕССИИ
 // ============================================================
+// backend/src/routes/gameRoutes.js
+
+// ============================================================
+// СОЗДАНИЕ СЕССИИ (ОДНА ДЛЯ ВСЕХ)
+// ============================================================
 router.post('/create', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -15,6 +20,7 @@ router.post('/create', verifyToken, async (req, res) => {
     
     console.log('🎮 СОЗДАНИЕ СЕССИИ:', { userId, type });
     
+    // 1. Получаем команду пользователя
     const user = await query('SELECT team_id FROM users WHERE id = ?', [userId]);
     console.log('👤 Пользователь:', user);
     
@@ -25,37 +31,75 @@ router.post('/create', verifyToken, async (req, res) => {
     const teamId = user[0].team_id;
     console.log('🏷️ Команда ID:', teamId);
     
-    const existing = await query(`
-      SELECT sp.*, gs.status, gs.id as session_id 
-      FROM session_participants sp
-      JOIN game_sessions gs ON sp.session_id = gs.id
-      WHERE sp.team_id = ? AND gs.status IN ('waiting', 'ready', 'active')
-    `, [teamId]);
+    // 2. Ищем активную сессию для этого типа игры
+    const existingSession = await query(`
+      SELECT gs.id, gs.status 
+      FROM game_sessions gs
+      WHERE gs.type = ? AND gs.status IN ('waiting', 'ready', 'active')
+      ORDER BY gs.created_at DESC
+      LIMIT 1
+    `, [type]);
     
-    if (existing.length > 0) {
-      console.log('📌 Существующая сессия найдена:', existing[0].session_id);
-      return res.json({ 
-        success: true, 
-        sessionId: existing[0].session_id,
-        exists: true
-      });
+    let sessionId;
+    
+    if (existingSession.length > 0) {
+      // Сессия существует - используем её
+      sessionId = existingSession[0].id;
+      console.log('📌 Найдена существующая сессия ID:', sessionId);
+      
+      // Проверяем, не добавлена ли уже команда в эту сессию
+      const alreadyInSession = await query(
+        'SELECT id FROM session_participants WHERE session_id = ? AND team_id = ?',
+        [sessionId, teamId]
+      );
+      
+      if (alreadyInSession.length === 0) {
+        // Добавляем команду в существующую сессию
+        await query(
+          'INSERT INTO session_participants (session_id, team_id, is_ready) VALUES (?, ?, ?)',
+          [sessionId, teamId, false]
+        );
+        console.log('✅ Команда добавлена в существующую сессию');
+      } else {
+        console.log('✅ Команда уже в сессии');
+      }
+      
+      // Обновляем статус сессии на 'waiting' если она была 'ready' или 'active'
+      if (existingSession[0].status === 'active') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Игра уже началась, присоединиться нельзя' 
+        });
+      }
+      
+      if (existingSession[0].status === 'ready') {
+        // Если сессия была в статусе ready, возвращаем в waiting
+        await query(
+          'UPDATE game_sessions SET status = ? WHERE id = ?',
+          ['waiting', sessionId]
+        );
+        console.log('🔄 Статус сессии изменён на waiting');
+      }
+      
+    } else {
+      // Нет активной сессии - создаём новую
+      const gameId = `${type}_${Date.now()}`;
+      const result = await query(
+        'INSERT INTO game_sessions (session_id, type, status, created_by) VALUES (?, ?, ?, ?)',
+        [gameId, type, 'waiting', userId]
+      );
+      sessionId = result.insertId;
+      console.log('✅ Создана новая сессия ID:', sessionId);
+      
+      // Добавляем команду в участники
+      await query(
+        'INSERT INTO session_participants (session_id, team_id, is_ready) VALUES (?, ?, ?)',
+        [sessionId, teamId, false]
+      );
+      console.log('✅ Команда добавлена в новую сессию');
     }
     
-    const gameId = `${type}_${Date.now()}`;
-    const result = await query(
-      'INSERT INTO game_sessions (session_id, type, status, created_by) VALUES (?, ?, ?, ?)',
-      [gameId, type, 'waiting', userId]
-    );
-    
-    const sessionId = result.insertId;
-    console.log('✅ Сессия создана, ID:', sessionId);
-    
-    const insertResult = await query(
-      'INSERT INTO session_participants (session_id, team_id, is_ready) VALUES (?, ?, ?)',
-      [sessionId, teamId, false]
-    );
-    console.log('✅ Команда добавлена в участники, ID:', insertResult.insertId);
-    
+    // 5. Проверяем, что получилось
     const check = await query(
       'SELECT * FROM session_participants WHERE session_id = ?',
       [sessionId]
@@ -65,8 +109,8 @@ router.post('/create', verifyToken, async (req, res) => {
     res.json({
       success: true,
       sessionId: sessionId,
-      gameId: gameId,
-      exists: false
+      gameId: `${type}_${Date.now()}`,
+      exists: existingSession.length > 0
     });
   } catch (error) {
     console.error('❌ Ошибка создания сессии:', error);

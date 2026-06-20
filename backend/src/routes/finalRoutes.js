@@ -127,9 +127,11 @@ async function getTeamsWithParticipants(lobbyId) {
 async function calculateResults(lobbyId, questionId) {
   console.log('📊 НАЧАЛО calculateResults для вопроса:', questionId);
   
-  const question = await query('SELECT value_points FROM final_questions WHERE id = ?', [questionId]);
+  const question = await query('SELECT value_points, correct_answer FROM final_questions WHERE id = ?', [questionId]);
   const questionValue = question[0]?.value_points || 0;
+  const correctAnswer = question[0]?.correct_answer || '';
   console.log('💰 Стоимость вопроса:', questionValue);
+  console.log('✅ Правильный ответ:', correctAnswer);
   
   const lobby = await query('SELECT question_started_at, current_turn_team_id FROM final_lobbies WHERE id = ?', [lobbyId]);
   const startTime = new Date(lobby[0].question_started_at);
@@ -155,7 +157,8 @@ async function calculateResults(lobbyId, questionId) {
       hasCorrectAnswer: false,
       currentTeamId: currentTeamId,
       gameFinished: false,
-      gameResults: null
+      gameResults: null,
+      correctAnswer: correctAnswer
     };
     await query('UPDATE final_lobbies SET current_results = ?, results_shown = 0 WHERE id = ?', 
       [JSON.stringify(emptyResults), lobbyId]);
@@ -252,7 +255,8 @@ async function calculateResults(lobbyId, questionId) {
     hasCorrectAnswer: correctTeamIds.length > 0,
     currentTeamId: currentTeamId,
     gameFinished: gameFinished,
-    gameResults: gameResults
+    gameResults: gameResults,
+    correctAnswer: correctAnswer
   };
   
   await query('UPDATE final_lobbies SET current_results = ?, results_shown = 0 WHERE id = ?', 
@@ -532,7 +536,9 @@ router.get('/board', verifyToken, async (req, res) => {
         const realAnsweredTeamIds = realAnswers.map(a => a.team_id);
         const allRealAnswered = formattedTeams.every(t => realAnsweredTeamIds.includes(t.id));
         
-        timeEnded = timePassed >= 30;
+        // ИСПРАВЛЕНО: время 360 секунд (6 минут)
+        const FINAL_TIME_LIMIT = 360;
+        timeEnded = timePassed >= FINAL_TIME_LIMIT;
         allTeamsAnswered = allRealAnswered || timeEnded;
         
         console.log('⏱ Время прошло:', Math.round(timePassed), 'сек, timeEnded:', timeEnded);
@@ -586,9 +592,6 @@ router.get('/board', verifyToken, async (req, res) => {
     let showResults = false;
     let results = null;
     
-    // ============================================================
-    // БЕЗОПАСНЫЙ ПАРСИНГ JSON
-    // ============================================================
     if (lobby.current_results) {
       try {
         if (typeof lobby.current_results === 'string') {
@@ -606,7 +609,6 @@ router.get('/board', verifyToken, async (req, res) => {
       } catch (e) {
         console.error('❌ Ошибка парсинга результатов:', e);
         console.log('📄 current_results значение:', lobby.current_results);
-        // Очищаем некорректные данные
         await query('UPDATE final_lobbies SET current_results = NULL, results_shown = 0 WHERE id = ?', [lobbyId]);
         showResults = false;
         results = null;
@@ -741,7 +743,9 @@ router.post('/answer', verifyToken, async (req, res) => {
     }
     
     const timePassed = (Date.now() - new Date(lobby[0].question_started_at).getTime()) / 1000;
-    if (timePassed > 30) {
+    // ИСПРАВЛЕНО: время 360 секунд (6 минут)
+    const FINAL_TIME_LIMIT = 360;
+    if (timePassed > FINAL_TIME_LIMIT) {
       return res.status(400).json({ success: false, message: 'Время вышло!' });
     }
     
@@ -783,7 +787,7 @@ router.post('/answer', verifyToken, async (req, res) => {
     const allTeams = await query('SELECT id FROM final_teams WHERE lobby_id = ?', [lobbyId]);
     const allRealAnswered = allTeams.every(t => realAnsweredTeamIds.includes(t.id));
     
-    const timeEnded = timePassed >= 30;
+    const timeEnded = timePassed >= FINAL_TIME_LIMIT;
     
     console.log(`👥 Реально ответили: ${realAnsweredTeamIds.length} из ${allTeams.length}`);
     console.log(`✅ Все реально ответили: ${allRealAnswered}, ⏰ Время вышло: ${timeEnded}`);
